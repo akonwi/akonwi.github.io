@@ -1,19 +1,35 @@
 <!DOCTYPE html>
 <html>
-
   {% include head.html %}
-
     <body>
-
-    {% include header.html %}
-
-    <div class="page-content">
-      <div class="wrap">
-      {{ content }}
+      <div class="container">
+        <header class="site-header">
+          <div class="top-bar">
+            <h1 class="site-title">
+              <a href="/">{{ site.title }}</a>
+            </h1>
+            <nav class="nav">
+              <ul>
+                <li>
+                  <a class="page-link" href="/">Blog</a>
+                </li>
+                <li>
+                  <a class="page-link" href="{{"/about/" | prepend: site.baseurl }}">About</a>
+                </li>
+                <li>
+                  <a class="page-link" href="/projects/">Projects</a>
+                </li>
+                <li>
+                  <a class="page-link" href="https://github.com/akonwi/">Github</a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </header>
+        <div class="content">
+          {{ content }}
+        </div>
+        {% include footer.html %}
       </div>
-    </div>
-
-    {% include footer.html %}
-
     </body>
 </html>
