@@ -59,7 +59,7 @@ code {
       color: black; }
       .nav ul li .page-link:hover {
         color: #62b6c9; }
-@media(min-width: 400px) {
+@media(min-width: 300px) {
   .nav ul li {
     padding: 0 5px 0 5px; } }
 @media(min-width: 600px) {
@@ -73,7 +73,7 @@ code {
     display: block;
     margin: 0 auto 0 auto; }
 
-@media(min-width: 400px) {
+@media(min-width: 300px) {
   .large {
     visibility: hidden;
     height: 0; }
@@ -105,7 +105,7 @@ code {
   .site-footer ul {
     list-style: none;
     display: inline; }
-@media(min-width: 400px) {
+@media(min-width: 300px) {
   .site-footer ul li {
     display: inline-block;
     padding: 4px; } }
