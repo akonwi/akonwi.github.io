@@ -62,6 +62,9 @@ code {
 @media(min-width: 300px) {
   .nav ul li {
     padding: 0 5px 0 5px; }
+  .nav ul li a .text { 
+    visibility: hidden;
+    height: none; }
   .nav ul li a .octicon {
     visibility: visible;
     height: inherit;
@@ -69,6 +72,9 @@ code {
 @media(min-width: 600px) {
   .nav ul li {
     padding: 0 30px 0 30px; }
+  .nav ul li a .text {
+    visibility: visible;
+    height: inherit; }
   .nav ul li a .octicon {
     visibility: hidden;
     height: 0;
