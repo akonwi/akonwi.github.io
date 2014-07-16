@@ -57,7 +57,7 @@ code {
     display: inline-block; }
     .nav ul li .page-link {
       color: black; }
-      .nav ul li .page-link:hover {
+      .nav ul li .page-link:hover span {
         color: #62b6c9; }
 @media(min-width: 300px) {
   .nav ul li {
