@@ -1,0 +1,147 @@
+@import colors
+
+/* Mixins */
+=breakpoint($screen)
+  @if $screen == large
+    @media(min-width: 600px)
+      @content
+  @if $screen == small
+    @media(min-width: 400px)
+      @content
+
+=center-block
+  display: block
+  margin: 0 auto 0 auto
+
+=box-sizing($box-model)
+  -webkit-box-sizing: $box-model  // Safari <= 5
+  -moz-box-sizing: $box-model  // Firefox <= 19
+  box-sizing: $box-model
+
+=font-size($sizeValue: 12 )
+  font-size: $sizeValue + px
+  font-size: (0.125 * $sizeValue) + rem
+
+/* Base */
+*,
+*:after,
+*:before
+  +box-sizing(border-box)
+
+
+body
+  font-family: "Comfortaa", cursive
+  line-height: 1.5
+  font-weight: 300
+  +font-size(8)
+  background-color: $grey
+
+a
+  text-decoration: none
+  color: $blue
+
+ul
+  padding: 0
+
+code
+  font-family: "Source Code Pro"
+  font-weight: 400
+  font-size: small
+
+$container-width: 70%
+
+.container
+  width: $container-width
+  +center-block
+
+.site-header
+  padding-bottom: 10px
+
+.site-title
+  +center-block
+  +font-size(25)
+  width: 170px
+  font-weight: bold
+
+  a
+    color: black
+    &:hover
+      color: $light-blue
+
+.nav ul
+  display: block
+  list-style-type: none
+  float: center
+  text-align: center
+  li
+    display: inline-block
+    .page-link
+      color: black
+      &:hover
+        color: $light-blue
+
+    +breakpoint(small)
+      padding: 0 5px 0 5px
+    +breakpoint(large)
+      padding: 0 30px 0 30px
+
+/* Home */
+.posts
+  list-style-type: none
+
+  .excerpt
+    width: 95%
+    +center-block
+
++breakpoint(small)
+  .large
+    visibility: hidden
+    height: 0
+  .small
+    visibility: visible
+    height: inherit
+
++breakpoint(large)
+  .large
+    visibility: visible
+    height: inherit
+  .small
+    visibility: hidden
+    height: 0
+
+/* Pages */
+.post-content
+  ul
+    padding-left: 40px
+
+/* Site footer */
+.site-footer
+  border-top: 1px solid $dark-grey
+  text-align: center
+  padding-top: 10px
+  margin-bottom: 15px
+  width: 100%
+  +center-block
+
+  ul
+    list-style: none
+    display: inline
+    li
+      +breakpoint(small)
+        display: inline-block
+        padding: 4px
+      +breakpoint(large)
+        margin: 0 30px 0 30px
+
+  li,
+  a,
+  p
+    font-size: 15px
+    letter-spacing: -.3px
+    color: $footer-grey
+
+span
+  color: $footer-grey
+
+p
+  margin-top: 0px
