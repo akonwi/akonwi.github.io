@@ -1,10 +1,13 @@
 <footer class="site-footer">
   <ul>
+    <li>
+      {{ site.description }}
+    </li>
     {% if site.github_username %}
       <li>
         <a href="https://github.com/{{ site.github_username }}">
           <span class="octicon octicon-mark-github"></span>
-          <span class="github">{{ site.github_username }}</span>
+          <span class="github text">{{ site.github_username }}</span>
         </a>
       </li>
     {% endif %}
@@ -12,21 +15,18 @@
       <li>
         <a href="https://twitter.com/{{ site.twitter_username }}">
           <span class="octicon octicon-mention"></span>
-          <span class="twitter">{{ site.twitter_username }}</span>
+          <span class="twitter text">{{ site.twitter_username }}</span>
         </a>
       </li>
     {% endif %}
     <li>
       <a href="mailto:{{ site.email }}">
         <span class="octicon octicon-mail"></span>
-        <span class="email">{{ site.email }}</span>
+        <span class="email text">{{ site.email }}</span>
       </a>
     </li>
     <li>
-      {{ site.description }}
-    </li>
-    <li>
-      <p>Copyright &copy; {{ site.time | date: "%Y" }} Akonwi Ngoh</p>
+      <p>Made with <span class="octicon octicon-heart"></span> thanks to Github</p>
     </li>
   </ul>
 </footer>

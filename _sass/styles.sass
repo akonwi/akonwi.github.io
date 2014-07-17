@@ -6,7 +6,7 @@
     @media(min-width: 600px)
       @content
   @if $screen == small
-    @media(min-width: 300px)
+    @media(max-width: 400px)
       @content
 
 =center-block
@@ -28,7 +28,6 @@
 *:before
   +box-sizing(border-box)
 
-
 body
   font-family: "Comfortaa", cursive
   line-height: 1.5
@@ -47,6 +46,8 @@ code
   font-family: "Source Code Pro"
   font-weight: 400
   font-size: small
+  span
+    font-size: .585rem
 
 $container-width: 70%
 
@@ -66,7 +67,7 @@ $container-width: 70%
   a
     color: black
     &:hover
-      color: $light-blue
+      color: $blue
 
 .nav ul
   display: block
@@ -77,13 +78,22 @@ $container-width: 70%
     display: inline-block
     .page-link
       color: black
-      &:hover
-        color: $light-blue
+      &:hover span
+        color: $blue
 
     +breakpoint(small)
-      padding: 0 5px 0 5px
+      padding: 0 15px 0 15px
+      .text
+        display: none
+      .octicon
+        display: inherit
+        font-size: 22px
     +breakpoint(large)
       padding: 0 30px 0 30px
+      .text
+        display: inherit
+      .octicon
+        display: none
 
 /* Home */
 .posts
@@ -125,13 +135,20 @@ $container-width: 70%
 
   ul
     list-style: none
-    display: inline
+    +breakpoint(small)
+      display: inline
+    +breakpoint(large)
+      display: -webkit-box
     li
       +breakpoint(small)
         display: inline-block
         padding: 4px
+        .text
+          display: none
       +breakpoint(large)
         margin: 0 30px 0 30px
+        .text
+          display: inherit
 
   li,
   a,
