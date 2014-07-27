@@ -18,11 +18,21 @@
   -moz-box-sizing: $box-model  // Firefox <= 19
   box-sizing: $box-model
 
-=font-size($sizeValue: 12 )
-  font-size: $sizeValue + px
-  font-size: (0.125 * $sizeValue) + rem
+=rem($property, $pxVal)
+  $remVals: ()
+  $pxVals: ()
+
+  @each $val in $pxVal
+    $remVals: append($remVals, ($val / 10 + rem))
+    $pxVals: append($pxVals, $val + px)
+
+  #{$property}: $pxVals
+  #{$property}: $remVals
 
 /* Base */
+html
+  font-size: 62.5%
+
 *,
 *:after,
 *:before
@@ -32,7 +42,7 @@ body
   font-family: "Comfortaa", cursive
   line-height: 1.5
   font-weight: 300
-  +font-size(8)
+  +rem(font-size, 16)
   background-color: $grey
 
 a
@@ -60,8 +70,8 @@ $container-width: 70%
 
 .site-title
   +center-block
-  +font-size(25)
-  width: 170px
+  +rem(font-size, 60)
+  +rem(width, 170)
   font-weight: bold
 
   a
@@ -82,14 +92,15 @@ $container-width: 70%
         color: $blue
 
     +breakpoint(small)
-      padding: 0 15px 0 15px
+      +rem(padding, 0 15 0 15)
+      // padding: 0 15px 0 15px
       .text
         display: none
       .octicon
         display: inherit
-        font-size: 22px
+        +rem(font-size, 22)
     +breakpoint(large)
-      padding: 0 30px 0 30px
+      +rem(padding, 0 30 0 30)
       .text
         display: inherit
       .octicon
@@ -121,15 +132,15 @@ $container-width: 70%
 
 /* Pages */
 .post-content
-  ul
-    padding-left: 40px
+  ul, ol
+    +rem(padding-left, 40)
 
 /* Site footer */
 .site-footer
-  border-top: 1px solid $dark-grey
+  border-top: .1rem solid $dark-grey
   text-align: center
-  padding-top: 10px
-  margin-bottom: 15px
+  padding-top: 1rem
+  +rem(margin-bottom, 15)
   width: 100%
   +center-block
 
@@ -142,23 +153,23 @@ $container-width: 70%
     li
       +breakpoint(small)
         display: inline-block
-        padding: 4px
+        padding: .4rem
         .text
           display: none
       +breakpoint(large)
-        margin: 0 30px 0 30px
+        +rem(margin, 0 30 0 30)
         .text
           display: inherit
 
   li,
   a,
   p
-    font-size: 15px
-    letter-spacing: -.3px
+    font-size: 1.5rem
+    letter-spacing: 0
     color: $footer-grey
 
 span
   color: $footer-grey
 
 p
-  margin-top: 0px
+  margin-top: 0
