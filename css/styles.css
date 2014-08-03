@@ -46,10 +46,12 @@ code {
   margin: 0 auto 0 auto;
   font-size: 60px;
   font-size: 6rem;
-  width: 170px;
-  width: 17rem;
-  font-weight: bold; }
+  font-weight: bold;
+  width: 23%; }
   .site-title a {
+    display: block;
+    margin: 0 auto 0 auto;
+    width: 100%;
     color: black; }
     .site-title a:hover {
       color: #3498db; }
@@ -65,7 +67,7 @@ code {
       color: black; }
       .nav ul li .page-link:hover span {
         color: #3498db; }
-@media(max-width: 400px) {
+@media(max-width: 600px) {
   .nav ul li {
     padding: 0px 15px 0px 15px;
     padding: 0rem 1.5rem 0rem 1.5rem; }
@@ -91,7 +93,7 @@ code {
     display: block;
     margin: 0 auto 0 auto; }
 
-@media(max-width: 400px) {
+@media(max-width: 600px) {
   .large {
     visibility: hidden;
     height: 0; }
@@ -124,13 +126,13 @@ code {
   margin: 0 auto 0 auto; }
   .site-footer ul {
     list-style: none; }
-@media(max-width: 400px) {
+@media(max-width: 600px) {
   .site-footer ul {
     display: inline; } }
 @media(min-width: 600px) {
   .site-footer ul {
     display: -webkit-inline-box; } }
-@media(max-width: 400px) {
+@media(max-width: 600px) {
   .site-footer ul li {
     display: inline-block;
     padding: 0.4rem; }

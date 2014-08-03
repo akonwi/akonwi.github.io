@@ -6,7 +6,7 @@
     @media(min-width: 600px)
       @content
   @if $screen == small
-    @media(max-width: 400px)
+    @media(max-width: 600px)
       @content
 
 =center-block
@@ -71,10 +71,12 @@ $container-width: 70%
 .site-title
   +center-block
   +rem(font-size, 60)
-  +rem(width, 170)
   font-weight: bold
+  width: 23%
 
   a
+    +center-block
+    width: 100%
     color: black
     &:hover
       color: $blue
