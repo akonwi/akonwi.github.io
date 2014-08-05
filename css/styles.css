@@ -46,11 +46,11 @@ code {
   margin: 0 auto 0 auto;
   font-size: 60px;
   font-size: 6rem;
-  font-weight: bold;
-  width: 23%; }
+  font-weight: bold; }
   .site-title a {
     display: block;
     margin: 0 auto 0 auto;
+    text-align: center;
     width: 100%;
     color: black; }
     .site-title a:hover {
