@@ -4,7 +4,7 @@ title: About
 permalink: /about/
 ---
 
-I'm an undergraduate at Wheaton College of Illinois studying Business/Economics and Computer Science.
+I'm a software engineer at ThoughtWorks. I did my undergraduate schooling at Wheaton College (IL) studying Business/Economics and Computer Science.
 
 I like to read (especially code), write code, and learn about nearly anything.
 
