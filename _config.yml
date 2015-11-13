@@ -7,7 +7,8 @@ url: "http://akonwi.github.io"
 twitter_username: konwi7
 github_username:  akonwi
 google_analytics_tracking_id: UA-47544457-1
-
+gems:
+  - jekyll-gist
 # Build settings
 markdown: kramdown
 permalink: /blog/:title
