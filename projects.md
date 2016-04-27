@@ -4,6 +4,10 @@ title: Projects
 permalink: /projects/
 ---
 
+- [Eventuality](http://akonwi.io/eventuality)
+
+  While working on building an event-sourced CQRS system in Java, I was frustrated with the framework used and its rigidness. Eventuality is just my version of the ideal CQRS tool set I'd like to use.
+
 - [Tutor](http://akonwi.github.io/tutor)
 
   A very basic web app for studying vocabulary words in different languages. I'm learning French and I wanted a flashcard like system that worked the way I wanted. I also wanted to make a desktop app with HTML and coffeescript so I initially created it using [node-webkit](http://github.com/rogerwang/node-webkit) and NeDB for simple nosql storage but moved to a pure web page for accessibility. More details can be found in the [source at github](http://github.com/akonwi/tutor)
