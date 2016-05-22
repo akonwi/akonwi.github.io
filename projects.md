@@ -4,6 +4,10 @@ title: Projects
 permalink: /projects/
 ---
 
+- [ChromeStorage](https://github.com/akonwi/chromestorage)
+
+  Friendly promise-based way to use the storage api in google Chrome extensions.
+
 - [Eventuality](http://akonwi.io/eventuality)
 
   While working on building an event-sourced CQRS system in Java, I was frustrated with the framework used and its rigidness. Eventuality is just my version of the ideal CQRS tool set I'd like to use.
