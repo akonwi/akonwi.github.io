@@ -11,7 +11,7 @@ Recently, I decided to catch up on what's going on in the front-end javascript w
 
 Thankfully, getting up and running with jest in my existing project wasn't too much of a hassle. I followed Jest's [getting started guide](http://facebook.github.io/jest/docs/tutorial-react.html) and did `yarn add -D jest babel-jest babel-preset-es2015 babel-preset-react enzyme`. I substituted`react-test-renderer` for [enzyme](https://github.com/airbnb/enzyme) which handles rendering in tests and has useful matchers for asserting on components. Jest requires having a `.babelrc` file, which I didn't have before. The simplest configs you need to get up and running looks like this:
 
-``` json
+``` javascript
 //.babelrc
 {
   "presets": ["es2015", "react"]
