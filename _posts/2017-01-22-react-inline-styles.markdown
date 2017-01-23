@@ -44,7 +44,7 @@ That was sufficient for what I wanted but later when I came across pseudo-select
 
 With Aphrodite, I realized that tests that were written to find nodes based on their css classes or assert that they had particular classes based on their state, were no longer valid because the class names were dynamically generated at the time of rendering the components. The solution to this is to put the style declaration in a separate module which can be referenced from both the component and the test. This becomes kind of ugly though and seems to defeat the purpose of components being self contained.
 
-Another concern I don't really like about doing this is that if you have styles declared that are for the children of a selector i.e. this in SASS:
+Another thing I don't really like about doing this is that if you have styles declared that are for the children of a selector i.e. this in SASS:
 
 ``` css
 .title-bar
@@ -55,4 +55,4 @@ Another concern I don't really like about doing this is that if you have styles 
 
 now has to be applied individually to those child elements. If the children are all the same component and can be dynamically generated, then it's not much of a fuss. Unfortunately, this wasn't the case for me because all the child elements were different. I think the solution to this is probably to refactor the styling to be based on flex-box because I'm probably doing something wrong.
 
-I need to do more research to find a library that doesn't create selectors but also allows using pseudo-selectors. 
+Overall, I'm pretty happy with this refactoring because I removed the need for SASS in the project and that's one less step in my build process and I can keep a small css file with some base styling. I need to do more research though to find a library that doesn't create a stylesheet but also accommodates for pseudo-selectors.
