@@ -13,24 +13,24 @@ Up until this past week, that's all I've done with grunt and I've been re-runnin
 
 Here's my task for running tests:
 
-``` coffeescript
+{% highlight coffeescript %}
 {spawnSync} = require 'child_process'
 
 grunt.registerTask 'test', () ->
   {status} = spawnSync 'npm', ['test'], stdio: 'inherit'
   status is 0
-```
+{% endhighlight %}
 
 As you can see it's pretty simple. The `spawnSync` function is from Node's [child_process](https://nodejs.org/api/child_process.html) so there's nothing new to install though it needs to be `required`. I won't go into the details of the `spawnSync` method signature but all this is doing is calling my npm script in a shell process and then returning whether the job finished successfully (i.e. the status code is 0). It's important to return false if the task fails so that if other tasks are chained after this one, then they won't be invoked if the current one fails. In my setup, the task to browserify my app follows this and I don't want that to happen if tests are failing.
 
 With a new task registered it can be invoked by the watch task simply by putting the task name in the watch configuration:
 
-``` coffeescript
+{% highlight coffeescript %}
 watch:
   js:
     files: ['src/**/**.js', '__tests__/**/**.js']
     tasks: ['test', 'browserify', 'dist:dev']
-```
+{% endhighlight %}
 
 Now the tests will run first when javascript files change and if they pass, then the app will be browserified and the 'dist:dev' task moves files to a different directory.
 
