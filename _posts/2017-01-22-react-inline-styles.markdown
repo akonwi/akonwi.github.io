@@ -44,7 +44,7 @@ That was sufficient for what I wanted but later when I came across pseudo-select
 
 With Aphrodite, I realized that tests that were written to find nodes based on their css classes or assert that they had particular classes based on their state, were no longer valid because the class names were dynamically generated at the time of rendering the components. The solution to this is to put the style declaration in a separate module which can be referenced from both the component and the test. This becomes kind of ugly though and seems to defeat the purpose of components being self contained.
 
-Another thing I don't really like about doing this is that if you have styles declared that are for the children of a selector i.e. this in SASS:
+Another thing I don't really like about doing this is that if you have styles declared that are for the children i.e. this in SASS:
 
 {% highlight css %}
 .title-bar

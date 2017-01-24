@@ -9,6 +9,11 @@ github_username:  akonwi
 google_analytics_tracking_id: UA-47544457-1
 gems:
   - jekyll-gist
+  - rouge
 # Build settings
 markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+highlighter: rouge
 permalink: /blog/:title

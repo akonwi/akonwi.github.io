@@ -7,7 +7,7 @@ module.exports = (grunt) ->
           noCache: true
         files:
           'css/styles.css': '_sass/styles.sass'
-          # 'css/syntax.css': '_sass/syntax.sass'
+          'css/syntax.css': '_sass/syntax.scss'
     watch:
       source:
         files: '**/**.sass'
