@@ -53,6 +53,6 @@ Another thing I don't really like about doing this is that if you have styles de
     display: inline-block
 {% endhighlight %}
 
-now has to be applied individually to those child elements. If the children are all the same component and can be dynamically generated, then it's not much of a fuss. Unfortunately, this wasn't the case for me because all the child elements were different. I think the solution to this is probably to refactor the styling to be based on flex-box because I'm probably doing something wrong.
+now has to be applied individually to those child elements. If the children are all the same component and can be dynamically generated, then it's not much of a fuss. Unfortunately, this wasn't the case for me because all the child elements were different. I think the solution to this is probably to refactor the styling to be based on flex-box because I'm probably doing something wrong. __Update__: I was able to recreate the look I wanted with flex box styling which eliminated the need for styling child elements.
 
 Overall, I'm pretty happy with this refactoring because I removed the need for SASS in the project and that's one less step in my build process and I can keep a small css file with some base styling. I need to do more research though to find a library that doesn't create a stylesheet but also accommodates for pseudo-selectors.
