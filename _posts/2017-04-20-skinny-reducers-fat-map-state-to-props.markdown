@@ -14,11 +14,11 @@ The state transitions are handled by functions called reducers, which take curre
 then return the new application state.
 This is simple enough as a concept and when it is applied in a React app, it can become a little more complex when the state now influences a UI.
 I have seen React + Redux applications become brittle and provide a poor UX because of mistakes in Redux architecture.
-I don't want to give a lesson on using react-redux and how 'connected' components work so I assume the readers are aware of the technologies here.
+This is not intended to be a lesson on how to use react-redux and how 'connected' components work so I assume the readers are aware of the technologies here.
 
 ### Remember MVC?
 Some folks might remember when MVC was the coolest and most beautiful pattern for web applications both server and client side.
-We had the __M__odel, __V__iew, and __C__ontrollers that each had a responsibility.
+We had the **M**odel, **V**iew, and **C**ontrollers that each had a responsibility.
 The model was the data representation, the controllers mapped requests to a model and provided a view to represent the data.
 The mantra for the best practice in this world was "Skinny controllers and fat models,"
 meaning have the model contain its business logic and let the controller simply match the data to a view with no concern of business logic.
@@ -26,7 +26,7 @@ meaning have the model contain its business logic and let the controller simply 
 MVC works pretty well in traditional web applications and unfortunately, it falls short in a Redux world because
 a Redux and React application is essentially an __MV__ pattern and React, which (at least originally) claimed to be just a view layer,
 insists that the view is a function of data i.e. `V = f(M)`.
-I think even without controllers, the "skinny _ and fat _" advice can still be applied to applications using React and Redux.
+I think even without controllers, the "skinny \_\_\_  and fat  \_\_\_" advice can still be applied to applications using React and Redux.
 
 ### How?
 Without controllers, it is very tempting and easy to put a lot of logic of how the View should be rendered inside of the application state, which in this case is the Model.
