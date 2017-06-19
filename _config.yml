@@ -17,3 +17,5 @@ kramdown:
   hard_wrap: false
 highlighter: rouge
 permalink: /blog/:title
+sass:
+  style: compressed
