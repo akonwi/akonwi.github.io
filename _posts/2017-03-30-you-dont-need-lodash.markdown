@@ -31,7 +31,7 @@ This is important because having less reliance on utility libraries allows you t
 The browser has limitations and the fact that we build web applications means we have to consider latency as a factor when we force our users
 to download megabytes of javascript and assets on a page.
 Regardless of whether we're building single page applications or traditional server driven applications,
-there downloading and parsing assets from the server still happens and we should be doing all that we can to reduce how much *needs* to be transmitted and executed.
+the downloading and parsing assets from the server still happens and we should be doing all that we can to reduce how much *needs* to be transmitted and executed.
 
 Beyond just our obligation to our end users, we should also consider the pain for ourselves. Dependency pruning is an activity we as developers should be actively engaged in.
 NPM has made it stupidly easy to bring in dependencies without a thought and that can lead to projects that heavily rely on code external to the team or product,
