@@ -32,7 +32,7 @@ I think even without controllers, the "skinny \_\_\_  and fat  \_\_\_" advice ca
 Without controllers, it is very tempting and easy to put a lot of logic of how the View should be rendered inside of the application state, which in this case is the Model.
 Doing this yields code like this:
 
-{% highlight javascript %}
+```javascript
 // in the reducer
 export default function(state = defaultState, action) {
   if (action.type === FOO) {
@@ -47,7 +47,7 @@ export default function(state = defaultState, action) {
 export default function(props) {
   return <View {...props.moreData}/>
 }
-{% endhighlight %}
+```
 
 The likelihood of a lot of the logic happening here being about *how* the UI should look is high.
 Although it is completely okay to have complex application state changes which require some helper functions,
@@ -62,7 +62,7 @@ To reverse this situation, we can take advantage of the react-redux api and leve
 This function is where business logic should lie because as the name suggests, it is quite literally a mapper of application state to view relevant 'stuff'.
 Using 'mapStateToProps', we can keep our reducers simple and our application state tree clear of UI litter and more about the application.
 
-{% highlight javascript %}
+```javascript
 // in the reducer
 export default function(state = defaultState, action) {
   if (action.type === FOO)
@@ -86,7 +86,7 @@ const mapStateToProps = state => {
   }
 }
 export default connect(mapStateToProps)(View)
-{% endhighlight %}
+```
 
 With this pattern, the complexity of what the UI may look like can be kept out of application state.
 This allows actions that change state to be more atomic and straightforward.

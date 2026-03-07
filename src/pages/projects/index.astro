@@ -1,0 +1,17 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { marked } from "marked";
+
+import projectsContent from "../../content/pages/projects.md?raw";
+const projectsHtml = marked.parse(projectsContent);
+---
+
+<BaseLayout title="Projects" canonicalPath="/projects/">
+  <section class="post page-content" data-animate="fade-in">
+    <header class="post-header">
+      <h2>Projects</h2>
+    </header>
+
+    <div class="post-content" set:html={projectsHtml}></div>
+  </section>
+</BaseLayout>
