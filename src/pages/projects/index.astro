@@ -1,8 +1,9 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { loadMarkdownPage } from "../../lib/pages";
+import { marked } from "marked";
 
-const projectsPage = await loadMarkdownPage("projects.md");
+import projectsContent from "../../content/pages/projects.md?raw";
+const projectsHtml = marked.parse(projectsContent);
 ---
 
 <BaseLayout title="Projects" canonicalPath="/projects/">
@@ -11,6 +12,6 @@ const projectsPage = await loadMarkdownPage("projects.md");
       <h2>Projects</h2>
     </header>
 
-    <article class="post-content" set:html={projectsPage.html}></article>
+    <article class="post-content" set:html={projectsHtml}></article>
   </div>
 </BaseLayout>

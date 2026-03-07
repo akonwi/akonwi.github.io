@@ -1,9 +1,3 @@
----
-layout: page
-title: Projects
-permalink: /projects/
----
-
 - [Git-plus](http://atom.io/packages/git-plus)
 
   Package for Github's atom editor. It allows doing git-y stuff from the editor without a terminal. As a vim user, I'm very used to Tim Pope's [vim-fugitive](http://github.com/tpope/vim-fugitive) and wanted that same feel for atom.

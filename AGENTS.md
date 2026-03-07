@@ -4,9 +4,9 @@ Repository guidance for coding agents working in this project.
 ## Repository Snapshot
 - Framework: Astro (static output).
 - Purpose: Personal blog/site with posts, pages, and RSS.
-- Content source: legacy markdown in `_posts/` plus root markdown pages.
+- Content source: markdown in `_posts/` and `src/content/pages/`.
 - URL requirement: keep blog post routes as `/blog/:title`.
-- Legacy stack still present: Jekyll/Grunt files remain for reference.
+- Legacy stack has been removed from active runtime.
 
 ## Rules Files Check
 - Cursor rules directory `.cursor/rules/`: not present.
@@ -21,8 +21,9 @@ If these files are added later, incorporate their rules into this document.
 - `src/lib/`: data-loading/parsing utilities.
 - `src/pages/`: route files (`/`, `/about/`, `/projects/`, `/blog/[title]`, `/feed.xml`).
 - `src/styles/`: Sass used by Astro build.
+- `src/content/pages/`: markdown content for static pages.
 - `_posts/`: canonical blog markdown content used for post generation.
-- `css/` and `octicons/`: legacy/asset CSS and icon font files used by site styling.
+- `css/` and `octicons/`: asset CSS and icon font files used by site styling.
 
 ## Setup Commands
 Run from repo root:
@@ -121,9 +122,9 @@ If a test framework is added later, document framework-native single-test comman
 - Keep RSS route at `/feed.xml`.
 
 ## Legacy Tooling Notes
-- Jekyll and Grunt files are still in the repository but are not primary runtime.
-- Do not delete legacy files unless migration cleanup is explicitly requested.
-- If working on migration cleanup, do it in a dedicated change with verification.
+- Jekyll and Grunt runtime files have been removed.
+- `_posts/` remains as the source dataset for blog content and slug compatibility.
+- Preserve existing slug behavior when moving content storage in future migrations.
 
 ## Agent Workflow Expectations
 - Inspect nearby files for local conventions before editing.
