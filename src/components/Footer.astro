@@ -3,21 +3,21 @@ import { site } from "../site";
 ---
 
 <footer class="site-footer">
-  <ul>
-    <li>{site.description}</li>
+  <p class="footer-description">{site.description}</p>
+  <ul class="footer-links">
+    <li>
+      <a href="/feed.xml">
+        <span class="octicon octicon-rss"></span>
+        <span>RSS</span>
+      </a>
+    </li>
     {site.twitterUsername && (
       <li>
         <a href={`https://twitter.com/${site.twitterUsername}`}>
           <span class="octicon octicon-mention"></span>
-          <span class="twitter text">{site.twitterUsername}</span>
+          <span>@{site.twitterUsername}</span>
         </a>
       </li>
     )}
-    <li>
-      <a href={`mailto:${site.email}`}>
-        <span class="octicon octicon-mail"></span>
-        <span class="email text">{site.email}</span>
-      </a>
-    </li>
   </ul>
 </footer>

@@ -9,6 +9,7 @@ import "../../octicons/octicons.css";
 const { title, description = site.description, canonicalPath = "/" } = Astro.props;
 const pageTitle = title ? `${title} | ${site.title}` : site.title;
 const canonicalUrl = new URL(canonicalPath, site.url).toString();
+const currentPath = Astro.url.pathname;
 ---
 
 <!DOCTYPE html>
@@ -20,12 +21,16 @@ const canonicalUrl = new URL(canonicalPath, site.url).toString();
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalUrl} />
-    <link href="https://fonts.googleapis.com/css?family=Comfortaa:400,700" rel="stylesheet" type="text/css" />
-    <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:200,400" rel="stylesheet" type="text/css" />
-    <script is:inline>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline define:vars={{ gaTrackingId: site.googleAnalyticsTrackingId }}>
       if (window.location.hostname !== "localhost") {
         var _gaq = window._gaq || [];
-        _gaq.push(["_setAccount", "UA-47544457-1"]);
+        _gaq.push(["_setAccount", gaTrackingId]);
         _gaq.push(["_trackPageview"]);
 
         (function () {
@@ -42,12 +47,15 @@ const canonicalUrl = new URL(canonicalPath, site.url).toString();
     </script>
   </head>
   <body>
-    <div class="container">
-      <Header />
-      <div class="content">
-        <slot />
+    <div class="page-shell">
+      <div class="ambient-glow"></div>
+      <div class="container">
+        <Header currentPath={currentPath} />
+        <main class="content">
+          <slot />
+        </main>
+        <Footer />
       </div>
-      <Footer />
     </div>
   </body>
 </html>

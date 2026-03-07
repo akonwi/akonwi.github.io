@@ -6,30 +6,17 @@ const posts = await getPosts();
 ---
 
 <BaseLayout>
-  <div class="home">
+  <section class="home" data-animate="fade-in">
     <ul class="posts">
       {posts.map((post) => (
-        <>
-          <li class="large">
-            <span class="post-date">{formatPostDate(post.date)}</span>
-            <a class="post-link" href={post.url}>
-              {post.title}
-            </a>
-            <div class="excerpt">{post.excerpt}</div>
-          </li>
-          <li class="small">
-            <span class="post-date">{formatPostDate(post.date)}</span>
-            <a class="post-link" href={post.url}>
-              {post.title}
-            </a>
-          </li>
-        </>
+        <li class="post-card">
+          <a class="post-link" href={post.url}>
+            <h2>{post.title}</h2>
+          </a>
+          <p class="post-date">{formatPostDate(post.date)}</p>
+          <p class="excerpt">{post.excerpt}</p>
+        </li>
       ))}
     </ul>
-    <p class="rss-subscribe">
-      <a href="/feed.xml">
-        <span class="mega-octicon octicon-rss"></span>
-      </a>
-    </p>
-  </div>
+  </section>
 </BaseLayout>

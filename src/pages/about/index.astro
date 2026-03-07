@@ -7,11 +7,11 @@ const aboutHtml = marked.parse(aboutContent);
 ---
 
 <BaseLayout title="About" canonicalPath="/about/">
-  <div class="post">
+  <section class="post page-content" data-animate="fade-in">
     <header class="post-header">
       <h2>About</h2>
     </header>
 
-    <article class="post-content" set:html={aboutHtml}></article>
-  </div>
+    <div class="post-content" set:html={aboutHtml}></div>
+  </section>
 </BaseLayout>
