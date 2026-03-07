@@ -1,5 +1,3 @@
-I'm a software engineer at ThoughtWorks. I did my undergraduate schooling at Wheaton College (IL) studying Business/Economics and Computer Science.
+I'm a product-minded engineer and engineering leader with experience building products from 0 to 1. Currently building at [Cartwheel](https://cartwheelcare.org). 
 
-I like to read (especially code), write code, and learn about nearly anything.
-
-Writing code for the web platform is something I really enjoy, so this blog is a playground for projects and things.
+I like to read (especially code), write, and vibe code, and learn about nearly anything.
