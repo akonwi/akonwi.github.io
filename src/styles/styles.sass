@@ -1,4 +1,5 @@
 :root
+  color-scheme: light dark
   --bg: #FFFFFF
   --fg: #111111
   --muted: #F4F4F4
@@ -6,6 +7,26 @@
   --border: #E5E5E5
   --accent: #2563EB
   --accent-muted: #DBEAFE
+  --code-comment: #6a737d
+  --code-keyword: #d73a49
+  --code-string: #032f62
+  --code-title: #6f42c1
+  --code-number: #005cc5
+
+@media (prefers-color-scheme: dark)
+  :root
+    --bg: #0D1117
+    --fg: #E6EDF3
+    --muted: #161B22
+    --muted-fg: #9CA3AF
+    --border: #30363D
+    --accent: #58A6FF
+    --accent-muted: #1C2A45
+    --code-comment: #8b949e
+    --code-keyword: #ff7b72
+    --code-string: #a5d6ff
+    --code-title: #d2a8ff
+    --code-number: #79c0ff
 
 *, *::before, *::after
   box-sizing: border-box
@@ -226,6 +247,37 @@ code, pre
   border: 2px solid var(--border)
   background: var(--muted)
   overflow-x: auto
+
+.post-content pre code
+  background: transparent
+
+.hljs
+  color: var(--fg)
+  background: transparent
+
+.hljs-comment,
+.hljs-quote
+  color: var(--code-comment)
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst
+  color: var(--code-keyword)
+
+.hljs-string,
+.hljs-doctag
+  color: var(--code-string)
+
+.hljs-title,
+.hljs-section,
+.hljs-selector-id
+  color: var(--code-title)
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable
+  color: var(--code-number)
 
 .post-content img
   max-width: 100%
