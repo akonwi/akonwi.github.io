@@ -23,7 +23,7 @@ If these files are added later, incorporate their rules into this document.
 - `src/styles/`: Sass used by Astro build.
 - `src/content/pages/`: markdown content for static pages.
 - `_posts/`: canonical blog markdown content used for post generation.
-- `css/` and `octicons/`: asset CSS and icon font files used by site styling.
+- `css/`: asset CSS used by site styling.
 
 ## Setup Commands
 Run from repo root:
@@ -113,7 +113,6 @@ If a test framework is added later, document framework-native single-test comman
 - Keep `src/styles/styles.sass` as the primary Astro style entry.
 - Reuse existing Sass variables/mixins before introducing new patterns.
 - Avoid introducing UI frameworks for minor style updates.
-- Preserve octicons/font asset compatibility when touching icon styles.
 
 ## URL and Routing Requirements
 - Blog post URLs must remain `/blog/:title`.
