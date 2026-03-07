@@ -33,6 +33,15 @@ function normalizeJekyllCodeBlocks(markdown) {
     .replace(/\{%\s*endhighlight\s*%\}/g, "```");
 }
 
+function normalizeJekyllGists(markdown) {
+  return markdown.replace(/\{%\s*gist\s+([\w-]+)\/([a-fA-F0-9]+)\s*%\}/g, (_match, user, gistId) => {
+    const gistUrl = `https://gist.github.com/${user}/${gistId}`;
+    const gistScriptUrl = `${gistUrl}.js`;
+
+    return `<div class="gist-embed"><script src="${gistScriptUrl}"></script><noscript><a href="${gistUrl}">View gist: ${user}/${gistId}</a></noscript></div>`;
+  });
+}
+
 function normalizeCategories(value) {
   if (Array.isArray(value)) {
     return value.map((entry) => String(entry));
@@ -132,7 +141,7 @@ export async function getPosts() {
       const fullPath = path.join(POSTS_DIRECTORY, fileName);
       const fileContent = await readFile(fullPath, "utf8");
       const { data, content } = matter(fileContent);
-      const normalizedContent = normalizeJekyllCodeBlocks(content);
+      const normalizedContent = normalizeJekyllGists(normalizeJekyllCodeBlocks(content));
       const published = data.published !== false;
 
       if (!published) {
