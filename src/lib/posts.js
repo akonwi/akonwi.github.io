@@ -27,21 +27,6 @@ marked.use(
   })
 );
 
-function normalizeJekyllCodeBlocks(markdown) {
-  return markdown
-    .replace(/\{%\s*highlight\s+([a-zA-Z0-9_+-]+)\s*%\}/g, "```$1")
-    .replace(/\{%\s*endhighlight\s*%\}/g, "```");
-}
-
-function normalizeJekyllGists(markdown) {
-  return markdown.replace(/\{%\s*gist\s+([\w-]+)\/([a-fA-F0-9]+)\s*%\}/g, (_match, user, gistId) => {
-    const gistUrl = `https://gist.github.com/${user}/${gistId}`;
-    const gistScriptUrl = `${gistUrl}.js`;
-
-    return `<div class="gist-embed"><script src="${gistScriptUrl}"></script><noscript><a href="${gistUrl}">View gist: ${user}/${gistId}</a></noscript></div>`;
-  });
-}
-
 function normalizeCategories(value) {
   if (Array.isArray(value)) {
     return value.map((entry) => String(entry));
@@ -72,8 +57,6 @@ function stripMarkdown(markdown) {
     .replace(/\[([^\]]+)\]\([^\)]*\)/g, "$1")
     .replace(/^#+\s+/gm, "")
     .replace(/[>*_~]/g, "")
-    .replace(/\{%.+?%\}/g, "")
-    .replace(/\{\{.+?\}\}/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -82,7 +65,7 @@ function getExcerpt(content) {
   const candidate = content
     .split(/\n\s*\n/g)
     .map((block) => block.trim())
-    .find((block) => block.length > 0 && !block.startsWith("#") && !block.startsWith("{%"));
+    .find((block) => block.length > 0 && !block.startsWith("#"));
 
   if (!candidate) {
     return "";
@@ -141,7 +124,6 @@ export async function getPosts() {
       const fullPath = path.join(POSTS_DIRECTORY, fileName);
       const fileContent = await readFile(fullPath, "utf8");
       const { data, content } = matter(fileContent);
-      const normalizedContent = normalizeJekyllGists(normalizeJekyllCodeBlocks(content));
       const published = data.published !== false;
 
       if (!published) {
@@ -156,9 +138,9 @@ export async function getPosts() {
         title: data.title ? String(data.title) : slug,
         date: postDate,
         categories: normalizeCategories(data.categories),
-        content: normalizedContent,
-        excerpt: getExcerpt(normalizedContent),
-        html: marked.parse(normalizedContent),
+        content,
+        excerpt: getExcerpt(content),
+        html: marked.parse(content),
         url: `/blog/${slug}`
       };
     })
