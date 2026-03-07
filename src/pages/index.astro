@@ -1,0 +1,35 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { formatPostDate, getPosts } from "../lib/posts";
+
+const posts = await getPosts();
+---
+
+<BaseLayout>
+  <div class="home">
+    <ul class="posts">
+      {posts.map((post) => (
+        <>
+          <li class="large">
+            <span class="post-date">{formatPostDate(post.date)}</span>
+            <a class="post-link" href={post.url}>
+              {post.title}
+            </a>
+            <div class="excerpt">{post.excerpt}</div>
+          </li>
+          <li class="small">
+            <span class="post-date">{formatPostDate(post.date)}</span>
+            <a class="post-link" href={post.url}>
+              {post.title}
+            </a>
+          </li>
+        </>
+      ))}
+    </ul>
+    <p class="rss-subscribe">
+      <a href="/feed.xml">
+        <span class="mega-octicon octicon-rss"></span>
+      </a>
+    </p>
+  </div>
+</BaseLayout>
