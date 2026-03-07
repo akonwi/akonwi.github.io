@@ -12,7 +12,9 @@
     "@astrojs/rss": "^4.0.12",
     "astro": "^5.14.0",
     "gray-matter": "^4.0.3",
+    "highlight.js": "^11.11.1",
     "marked": "^16.4.1",
+    "marked-highlight": "^2.2.2",
     "sass": "^1.93.2"
   }
 }

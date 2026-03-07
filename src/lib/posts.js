@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { marked } from "marked";
+import { markedHighlight } from "marked-highlight";
+import hljs from "highlight.js/lib/common";
 
 const POSTS_DIRECTORY = fileURLToPath(new URL("../../_posts", import.meta.url));
 const POST_FILENAME_REGEX = /^(\d{4})-(\d{1,2})-(\d{1,2})-(.+)\.(md|markdown)$/;
@@ -11,6 +13,25 @@ marked.setOptions({
   gfm: true,
   breaks: false
 });
+
+marked.use(
+  markedHighlight({
+    langPrefix: "hljs language-",
+    highlight(code, language) {
+      if (language && hljs.getLanguage(language)) {
+        return hljs.highlight(code, { language }).value;
+      }
+
+      return hljs.highlightAuto(code).value;
+    }
+  })
+);
+
+function normalizeJekyllCodeBlocks(markdown) {
+  return markdown
+    .replace(/\{%\s*highlight\s+([a-zA-Z0-9_+-]+)\s*%\}/g, "```$1")
+    .replace(/\{%\s*endhighlight\s*%\}/g, "```");
+}
 
 function normalizeCategories(value) {
   if (Array.isArray(value)) {
@@ -111,6 +132,7 @@ export async function getPosts() {
       const fullPath = path.join(POSTS_DIRECTORY, fileName);
       const fileContent = await readFile(fullPath, "utf8");
       const { data, content } = matter(fileContent);
+      const normalizedContent = normalizeJekyllCodeBlocks(content);
       const published = data.published !== false;
 
       if (!published) {
@@ -125,9 +147,9 @@ export async function getPosts() {
         title: data.title ? String(data.title) : slug,
         date: postDate,
         categories: normalizeCategories(data.categories),
-        content,
-        excerpt: getExcerpt(content),
-        html: marked.parse(content),
+        content: normalizedContent,
+        excerpt: getExcerpt(normalizedContent),
+        html: marked.parse(normalizedContent),
         url: `/blog/${slug}`
       };
     })
