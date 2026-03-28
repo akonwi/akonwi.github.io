@@ -9,9 +9,6 @@ Repository guidance for coding agents working in this project.
 - Legacy stack has been removed from active runtime.
 
 ## Rules Files Check
-- Cursor rules directory `.cursor/rules/`: not present.
-- Cursor root file `.cursorrules`: not present.
-- Copilot instructions `.github/copilot-instructions.md`: not present.
 
 If these files are added later, incorporate their rules into this document.
 
