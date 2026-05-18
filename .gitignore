@@ -1,7 +1,8 @@
-ard-out
 _site
-.sass-cache
-node_modules
-dist
 .astro
+.sass-cache
+ard-out
+ard-out/
+dist
+node_modules
 site-gen

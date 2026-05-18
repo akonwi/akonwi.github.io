@@ -2,19 +2,10 @@
   "name": "akonwi.github.io",
   "version": "0.1.0",
   "packageManager": "bun@1.2.16",
-  "type": "module",
+  "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview"
-  },
-  "devDependencies": {
-    "@astrojs/rss": "^4.0.12",
-    "astro": "^5.14.0",
-    "gray-matter": "^4.0.3",
-    "highlight.js": "^11.11.1",
-    "marked": "^16.4.1",
-    "marked-highlight": "^2.2.2",
-    "sass": "^1.93.2"
+    "build": "ard build site.ard --target go --out site-gen && ./site-gen",
+    "test": "ard test site.ard",
+    "clean": "rm -rf dist site-gen ard-out"
   }
 }

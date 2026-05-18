@@ -327,7 +327,7 @@ fn build_site() Void!Str {
   try fs::create_dir("dist/css")
   try fs::copy("css/style.css", "dist/css/style.css")
   try fs::copy("css/syntax.css", "dist/css/syntax.css")
-  try fs::copy("public/CNAME", "dist/CNAME")
+  try fs::write("dist/CNAME", "akonwi.io")
 
   io::print("Done! Site built to dist")
   Result::ok(())
