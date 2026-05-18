@@ -2,62 +2,61 @@
 Repository guidance for coding agents working in this project.
 
 ## Repository Snapshot
-- Framework: Astro (static output).
+- Framework: **Ard** static site generator (custom, compiled to Go).
 - Purpose: Personal blog/site with posts, pages, and RSS.
-- Content source: markdown in `_posts/` and `src/content/pages/`.
-- URL requirement: keep blog post routes as `/blog/:title`.
-- Legacy stack has been removed from active runtime.
+- Content source: markdown in `posts/` and `pages/`.
+- Build output: `dist/` directory.
+- SSG source: `site.ard` (Ard) + `ffi.go` (Go FFI externs).
 
-## Rules Files Check
-- Cursor rules directory `.cursor/rules/`: not present.
-- Cursor root file `.cursorrules`: not present.
-- Copilot instructions `.github/copilot-instructions.md`: not present.
-
-If these files are added later, incorporate their rules into this document.
+## URL Requirements
+- Blog posts: `/blog/:title` (slug derived from filename).
+- Static pages: `/about/`, `/projects/`.
+- RSS feed: `/feed.xml`.
 
 ## Directory Conventions
-- `src/layouts/`: Astro page shell/layout components.
-- `src/components/`: shared UI components (`Header`, `Footer`).
-- `src/lib/`: data-loading/parsing utilities.
-- `src/pages/`: route files (`/`, `/about/`, `/projects/`, `/blog/[title]`, `/feed.xml`).
-- `src/styles/`: Sass used by Astro build.
-- `src/content/pages/`: markdown content for static pages.
-- `_posts/`: canonical blog markdown content used for post generation.
-- `css/`: asset CSS used by site styling.
 
-## Setup Commands
-Run from repo root:
+### Content
+- `posts/` — blog post markdown files. Filename format: `YYYY-M-D-slug.md` or `YYYY-MM-DD-slug.markdown`.
+- `pages/` — static page markdown (about.md, projects.md). No frontmatter required.
+
+### SSG
+- `site.ard` — main SSG program (Ard source). Contains data types, template rendering, build functions, and unit tests.
+- `ffi.go` — Go FFI externs: `ParseFrontmatter` (YAML frontmatter → JSON) and `MarkdownToHTML` (markdown → HTML).
+- `ard.toml` — Ard project config.
+- `templates/layout.html` — full HTML shell with `@@title@@`, `@@content@@`, `@@canonical_url@@`, `@@description@@` placeholders.
+- `templates/post-card.html` — post list item partial with `@@url@@`, `@@title@@`, `@@date@@`, `@@excerpt@@` placeholders.
+
+### Static assets
+- `css/style.css` — main site styles (layout, typography, responsive). Converted from previous SASS.
+- `css/syntax.css` — highlight.js syntax highlighting overrides.
+- `dist/` — build output (gitignored).
+
+## Build Commands
+Primary development commands (run from repo root):
 ```bash
-bun install
+ard build site.ard --target go --out site-gen    # compile SSG to native binary
+./site-gen                                         # generate dist/
+ard test site.ard                                  # run 17 unit tests
 ```
 
-## Build, Lint, and Test Commands
-Primary development commands:
+Package.json scripts:
 ```bash
-bun run dev
-bun run build
-bun run preview
+bun run build    # builds and runs site-gen
+bun run test     # runs ard test
+bun run clean    # removes dist/, site-gen, ard-out/
 ```
 
 Current quality gate:
-- `bun run build` must pass.
-
-Linting and tests:
-- No dedicated linter configured yet.
-- No automated unit/integration test suite configured yet.
-
-Recommended verification flow before handoff:
-```bash
-bun run build
-bun run preview
-```
+- `ard test site.ard` must pass (17 tests: slug extraction, date parsing, formatting, templates, XML escaping).
+- `ard build site.ard --target go --out site-gen` must succeed.
+- `./site-gen` must complete without errors.
 
 ## Running a Single Test
-Not currently applicable (no test framework configured).
-
-If a test framework is added later, document framework-native single-test commands, for example:
-- Vitest: `bunx vitest run path/to/file.test.ts -t "test name"`
-- Bun test runner: `bun test path/to/file.test.ts --test-name-pattern "test name"`
+Ard's test framework supports filtering:
+```bash
+ard test site.ard --filter test_extract_slug    # run tests matching "test_extract_slug"
+ard test site.ard --filter test_format_date     # run tests matching "test_format_date"
+```
 
 ## Code Style Guidelines
 
@@ -66,68 +65,70 @@ If a test framework is added later, document framework-native single-test comman
 - Keep route behavior stable unless explicitly requested.
 - Preserve existing architecture and file placement.
 - Avoid unrelated refactors in feature/bugfix changes.
-- Use ASCII unless a file already requires Unicode content.
 
-### Imports and Modules
-- Project uses ESM (`"type": "module"` in `package.json`).
-- Prefer explicit named imports over large default utility imports.
-- Group imports by source type (node built-ins, packages, local files).
-- Keep import paths stable and relative within `src/`.
+### Ard Source (`site.ard`)
+- Import stdlib modules at top: `ard/fs`, `ard/io`, `ard/decode`, `ard/maybe`, `ard/testing`.
+- Extern FFI functions use shorthand syntax: `extern fn name(args) RetType = "GoFuncName"`.
+- Define `struct` types before functions that use them.
+- Functions must be defined before they are called (no hoisting).
+- Return types: `Void!Str` for fallible functions, `Str` for pure functions.
+- Use `try` for error propagation, `match` on `Result` for error handling.
+- End `Void!Str` functions with `Result::ok(())`.
+- Use `match` on Bool for conditional returns (not `if` as expression).
+- Avoid function calls with string literal args inside `{interpolation}` (parser bug).
+- Use `for item in list` or `for item, index in list` for iteration.
+- Use `not` for negation, `or` for logical-or (not `!` or `||`).
+- No `return` keyword — last expression is the return value.
+- No `continue` keyword — use nested `if` instead.
 
-### Formatting
-- Match existing formatting in neighboring files.
-- Keep Astro frontmatter concise and top-loaded.
-- Use readable multiline formatting for arrays/objects in route generation.
-- Do not reformat entire files unless required by the change.
+### Go FFI (`ffi.go`)
+- Functions return `(string, error)` for Ard `Str!Str` types.
+- Frontmatter parsing returns JSON string that Ard decodes via `ard/decode`.
+- Markdown renderer uses Go stdlib only (no external dependencies).
+- Keep the extern surface minimal — two functions currently.
 
-### Types
-- Codebase currently uses JavaScript, not TypeScript.
-- Do not introduce TypeScript in unrelated changes.
-- If TypeScript is introduced later, scope it to a dedicated migration.
+### Templates
+- Use `@@placeholder@@` syntax (not `{{...}}` — Ard interprets `{}` as interpolation).
+- Placeholders: `@@title@@`, `@@content@@`, `@@canonical_url@@`, `@@description@@`.
+- Header and footer are inlined in `layout.html`, not separate partials.
+- `post-card.html` is a separate partial since it's reused in the index loop.
+
+### Testing
+- Tests are co-located in `site.ard` as `test fn` returning `Void!Str`.
+- Use `use ard/testing` for `assert(condition, message)`, `pass()`, `fail(message)`.
+- Use `try testing::assert(...)` to propagate failures.
+- Test pure functions (string manipulation, date formatting, template replacement).
+- Integration tests (file I/O, extern calls) are run via the build pipeline.
+
+### CSS
+- `css/style.css` is plain CSS (no preprocessor). Converted from prior SASS.
+- `css/syntax.css` handles highlight.js code block styles.
+- Keep light/dark mode via `@media (prefers-color-scheme: ...)`.
+- Use CSS custom properties for theming (`--bg`, `--fg`, `--accent`, etc.).
 
 ### Naming Conventions
-- Route/page files should map clearly to URL intent.
-- CSS class names should remain lowercase kebab-case.
-- Content slugs should remain lowercase and hyphenated.
-- Keep `/blog/:title` compatibility by deriving title from legacy post filename slug.
+- Slugs are lowercase hyphenated, derived from post filename.
+- CSS class names are lowercase kebab-case.
+- Ard function/type names use snake_case.
 
 ### Error Handling
-- Prefer failing fast at build time over silently skipping malformed content.
-- For content parsing failures, surface actionable errors with file context.
-- Do not swallow exceptions in build-path utilities unless there is a safe fallback.
-
-### Astro and Content Rules
-- Keep page metadata (`title`, canonical, description) consistent across pages.
-- Reuse layout/components instead of duplicating shared markup.
-- Keep RSS generation in sync with published post list.
-- Preserve existing post ordering by date (newest first).
-- Honor `published: false` behavior for unpublished posts.
-
-### Markdown and Frontmatter
-- Posts/pages must contain valid YAML frontmatter between `---` lines.
-- Keep frontmatter keys stable (`title`, `date`, `categories`, `published`).
-- Do not mass-normalize historical post filenames unless asked.
-- Avoid editorial rewriting of post content during technical changes.
-
-### Sass and CSS
-- Keep `src/styles/styles.sass` as the primary Astro style entry.
-- Reuse existing Sass variables/mixins before introducing new patterns.
-- Avoid introducing UI frameworks for minor style updates.
+- Fallible functions return `Result<T, Str>` and use `try` to propagate.
+- Frontmatter parsing errors are converted to `Str` via `decode::flatten(errs)`.
+- Build functions surface errors with context ("title: ...", "body: ...").
+- The `main` function catches and prints errors: `try build_site() -> err { io::print(err) }`.
 
 ## URL and Routing Requirements
-- Blog post URLs must remain `/blog/:title`.
-- `:title` must match legacy slug derived from `_posts` filename.
-- Keep `about` and `projects` pages at `/about/` and `/projects/`.
-- Keep RSS route at `/feed.xml`.
-
-## Legacy Tooling Notes
-- Jekyll and Grunt runtime files have been removed.
-- `_posts/` remains as the source dataset for blog content and slug compatibility.
-- Preserve existing slug behavior when moving content storage in future migrations.
+- Blog post URLs: `/blog/:title` where `:title` matches the slug from filename.
+- About page: `/about/` (rendered from `pages/about.md`).
+- Projects page: `/projects/` (rendered from `pages/projects.md`).
+- RSS feed: `/feed.xml`.
+- Canonical URLs use `https://akonwi.io`.
 
 ## Agent Workflow Expectations
 - Inspect nearby files for local conventions before editing.
-- Run the smallest relevant verification commands after edits.
+- Run `ard test site.ard` after changes.
+- Run `ard build site.ard --target go --out site-gen && ./site-gen` for full verification.
 - Call out assumptions and unverified behavior in your handoff.
-- Do not commit generated output (`dist/`) unless explicitly requested.
-- Do not invent repository policies not present in source or this file.
+- Do not commit generated output (`dist/`, `site-gen`, `ard-out/`) unless explicitly requested.
+- Updates to FFI (`ffi.go`) require a rebuild of the binary.
+- New template placeholders must use `@@name@@` syntax and be added to `apply_layout()` or `apply_post_card()`.
