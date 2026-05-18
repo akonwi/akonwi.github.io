@@ -324,6 +324,11 @@ fn build_site() Void!Str {
 
   try build_feed(posts)
 
+  try fs::create_dir("dist/css")
+  try fs::copy("css/style.css", "dist/css/style.css")
+  try fs::copy("css/syntax.css", "dist/css/syntax.css")
+  try fs::copy("public/CNAME", "dist/CNAME")
+
   io::print("Done! Site built to dist")
   Result::ok(())
 }
