@@ -1,0 +1,467 @@
+use ard/fs
+use ard/io
+use ard/decode
+use ard/maybe
+use ard/testing
+
+// ============================================================
+// Extern FFI — Go functions in ffi.go
+// ============================================================
+
+extern fn md_to_html(markdown: Str) Str!Str = "MarkdownToHTML"
+extern fn parse_frontmatter(content: Str) Str!Str = "ParseFrontmatter"
+
+// ============================================================
+// Data types
+// ============================================================
+
+struct Post {
+  slug: Str,
+  title: Str,
+  date: Str,
+  html: Str,
+  excerpt: Str,
+  url: Str,
+}
+
+// ============================================================
+// Filename helpers
+// ============================================================
+
+fn remove_ext(filename: Str) Str {
+  match {
+    filename.contains(".markdown") => filename.replace_all(".markdown", ""),
+    filename.contains(".md") => filename.replace_all(".md", ""),
+    _ => filename,
+  }
+}
+
+fn extract_slug(filename: Str) Str!Str {
+  let base = remove_ext(filename)
+  let parts = base.split("-")
+
+  match parts.size() < 4 {
+    true => Result::err("Filename {filename} has fewer than 4 dash-separated parts"),
+    false => {
+      mut slug = ""
+      for part, i in parts {
+        if i >= 3 {
+          if not slug == "" {
+            slug =+ "-"
+          }
+          slug =+ part
+        }
+      }
+      Result::ok(slug)
+    },
+  }
+}
+
+fn extract_date(filename: Str) Str!Str {
+  let base = remove_ext(filename)
+  let parts = base.split("-")
+
+  match parts.size() < 3 {
+    true => Result::err("Filename {filename} has fewer than 3 dash-separated parts"),
+    false => {
+      mut month = parts.at(1)
+      mut day = parts.at(2)
+
+      if month.size() == 1 {
+        month = "0{month}"
+      }
+      if day.size() == 1 {
+        day = "0{day}"
+      }
+
+      Result::ok("{parts.at(0)}-{month}-{day}")
+    },
+  }
+}
+
+// ============================================================
+// Date formatting
+// ============================================================
+
+fn month_name(month_str: Str) Str {
+  let names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  let codes = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+  mut name = month_str
+  for code, i in codes {
+    if month_str == code {
+      name = names.at(i)
+    }
+  }
+  name
+}
+
+fn strip_time(date_str: Str) Str {
+  match date_str.contains("T") {
+    true => date_str.split("T").at(0),
+    false => date_str,
+  }
+}
+
+fn strip_leading_zero(day_str: Str) Str {
+  match day_str.starts_with("0") {
+    true => day_str.replace_all("0", ""),
+    false => day_str,
+  }
+}
+
+fn format_date(date_str: Str) Str {
+  let parts = date_str.split("-")
+  match parts.size() < 3 {
+    true => date_str,
+    false => {
+      let year = parts.at(0)
+      let month_str = parts.at(1)
+      let day_full = parts.at(2)
+      let day = strip_time(day_full)
+      let mname = month_name(month_str)
+      let day_num = strip_leading_zero(day)
+      "{mname} {day_num}, {year}"
+    },
+  }
+}
+
+fn rss_date(date_str: Str) Str {
+  let parts = date_str.split("-")
+  match parts.size() < 3 {
+    true => date_str,
+    false => {
+      let year = parts.at(0)
+      let month_str = parts.at(1)
+      let day_full = parts.at(2)
+      let day = strip_time(day_full)
+      let mname = month_name(month_str)
+      "{day} {mname} {year} 00:00:00 GMT"
+    },
+  }
+}
+
+// ============================================================
+// Template rendering
+// ============================================================
+
+fn apply_layout(tpl: Str, page_title: Str, content: Str, canonical: Str, description: Str) Str {
+  mut page = tpl.replace_all("@@title@@", page_title)
+  page = page.replace_all("@@content@@", content)
+  page = page.replace_all("@@canonical_url@@", canonical)
+  page = page.replace_all("@@description@@", description)
+  page
+}
+
+fn apply_post_card(tpl: Str, post: Post) Str {
+  mut card = tpl.replace_all("@@title@@", post.title)
+  card = card.replace_all("@@url@@", post.url)
+  card = card.replace_all("@@date@@", format_date(post.date))
+  card = card.replace_all("@@excerpt@@", post.excerpt)
+  card
+}
+
+// ============================================================
+// Utility functions
+// ============================================================
+
+fn xml_escape(s: Str) Str {
+  mut out = s.replace_all("&", "&amp;")
+  out = out.replace_all("<", "&lt;")
+  out = out.replace_all(">", "&gt;")
+  out = out.replace_all("\"", "&quot;")
+  out
+}
+
+fn extract_date_from_posts(posts: [Post]) Str {
+  match posts.size() {
+    0 => "2024-01-01",
+    _ => posts.at(0).date,
+  }
+}
+
+// ============================================================
+// Build functions
+// ============================================================
+
+fn build_post_page(post: Post) Void!Str {
+  let layout_tpl = try fs::read("templates/layout.html")
+  let canonical = "https://akonwi.io{post.url}"
+
+  let article = "<article class=\"post post-page\">\n<header class=\"post-header\">\n<h1>{post.title}</h1>\n<p class=\"meta\">{format_date(post.date)}</p>\n</header>\n<div class=\"post-content\">{post.html}</div>\n</article>"
+
+  let page = apply_layout(layout_tpl, "{post.title} | akonwi", article, canonical, "My ramblings...")
+  try fs::create_dir("dist/blog/{post.slug}")
+  try fs::write("dist/blog/{post.slug}/index.html", page)
+  Result::ok(())
+}
+
+fn build_index(posts: [Post]) Void!Str {
+  let layout_tpl = try fs::read("templates/layout.html")
+  let card_tpl = try fs::read("templates/post-card.html")
+
+  mut list_html = ""
+  for post in posts {
+    list_html =+ apply_post_card(card_tpl, post)
+  }
+
+  let content = "<section class=\"home\">\n<ul class=\"posts\">{list_html}</ul>\n</section>"
+  let canonical = "https://akonwi.io/"
+
+  let page = apply_layout(layout_tpl, "akonwi", content, canonical, "My ramblings...")
+  try fs::write("dist/index.html", page)
+  Result::ok(())
+}
+
+fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_path: Str) Void!Str {
+  let content_raw = try fs::read(source_path)
+  let html = try md_to_html(content_raw)
+
+  let layout_tpl = try fs::read("templates/layout.html")
+
+  let content = "<section class=\"post page-content\">\n<header class=\"post-header\">\n<h2>{page_title}</h2>\n</header>\n<div class=\"post-content\">{html}</div>\n</section>"
+  let canonical = "https://akonwi.io{canonical_path}"
+
+  let page = apply_layout(layout_tpl, page_title, content, canonical, "My ramblings...")
+  try fs::create_dir(output_path.replace_all("/index.html", ""))
+  try fs::write(output_path, page)
+  Result::ok(())
+}
+
+fn build_feed(posts: [Post]) Void!Str {
+  let now = rss_date(extract_date_from_posts(posts))
+  let feed_title = xml_escape("akonwi")
+  let feed_desc = xml_escape("My ramblings...")
+
+  mut items = ""
+  for post in posts {
+    items =+ "  <item>\n"
+    items =+ "    <title>{xml_escape(post.title)}</title>\n"
+    items =+ "    <link>https://akonwi.io{post.url}</link>\n"
+    items =+ "    <guid>https://akonwi.io{post.url}</guid>\n"
+    items =+ "    <pubDate>{rss_date(post.date)}</pubDate>\n"
+    items =+ "    <description>{xml_escape(post.excerpt)}</description>\n"
+    items =+ "  </item>\n"
+  }
+
+  let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{feed_title}</title>\n<description>{feed_desc}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
+
+  try fs::write("dist/feed.xml", feed)
+  Result::ok(())
+}
+fn build_posts() [Post]!Str {
+  let entries = try fs::list_dir("_posts")
+  mut posts: [Post] = []
+
+  for entry in entries {
+    if entry.is_file {
+      let name = entry.name
+      if name.contains(".md") or name.contains(".markdown") {
+        let file_path = "_posts/{name}"
+        let content = try fs::read(file_path)
+        let meta_json = try parse_frontmatter(content)
+        let meta = try decode::from_json(meta_json)
+
+        let pub_result = decode::run(meta, decode::field("published", decode::bool))
+        let is_published = match pub_result {
+          ok(v) => v,
+          err(_) => true,
+        }
+
+        if is_published {
+          let slug = try extract_slug(name)
+          let date_str = try extract_date(name)
+          let title = try decode::run(meta, decode::field("title", decode::string)) -> errs {
+            Result::err("title: {decode::flatten(errs)}")
+          }
+          let body_md = try decode::run(meta, decode::field("body_md", decode::string)) -> errs {
+            Result::err("body: {decode::flatten(errs)}")
+          }
+          let excerpt = try decode::run(meta, decode::field("excerpt", decode::string)) -> errs {
+            Result::err("excerpt: {decode::flatten(errs)}")
+          }
+          let date_iso = try decode::run(meta, decode::field("date_iso", decode::string)) -> errs {
+            Result::err("date: {decode::flatten(errs)}")
+          }
+
+          let post_date = match date_iso.is_empty() {
+            true => date_str,
+            false => date_iso,
+          }
+
+          let html = try md_to_html(body_md)
+
+          let post = Post {
+            slug: slug,
+            title: title,
+            date: post_date,
+            html: html,
+            excerpt: excerpt,
+            url: "/blog/{slug}",
+          }
+
+          try build_post_page(post)
+          posts.push(post)
+        }
+      }
+    }
+  }
+
+  Result::ok(posts)
+}
+
+fn build_site() Void!Str {
+  io::print("Building site...")
+
+  try fs::create_dir("dist")
+  try fs::create_dir("dist/blog")
+
+  let posts = try build_posts()
+
+  try build_index(posts)
+
+  try build_page("src/content/pages/about.md", "dist/about/index.html", "About | akonwi", "/about/")
+  try build_page("src/content/pages/projects.md", "dist/projects/index.html", "Projects | akonwi", "/projects/")
+
+  try build_feed(posts)
+
+  io::print("Done! Site built to dist")
+  Result::ok(())
+}
+
+fn main() {
+  try build_site() -> err { io::print(err) }
+}
+
+// ============================================================
+// Tests
+// ============================================================
+
+test fn test_remove_ext_markdown() Void!Str {
+  let base = remove_ext("2017-01-10-introducing-jest-into-a-react-project.markdown")
+  try testing::assert(base == "2017-01-10-introducing-jest-into-a-react-project", "Should remove .markdown")
+  testing::pass()
+}
+
+test fn test_remove_ext_md() Void!Str {
+  let base = remove_ext("2015-4-09-oloo.md")
+  try testing::assert(base == "2015-4-09-oloo", "Should remove .md")
+  testing::pass()
+}
+
+test fn test_extract_slug_standard() Void!Str {
+  let slug = try extract_slug("2017-04-20-skinny-reducers-fat-map-state-to-props.markdown")
+  try testing::assert(slug == "skinny-reducers-fat-map-state-to-props", "Expected slug")
+  testing::pass()
+}
+
+test fn test_extract_slug_md_extension() Void!Str {
+  let slug = try extract_slug("2015-4-09-oloo.md")
+  try testing::assert(slug == "oloo", "Expected slug for oloo.md")
+  testing::pass()
+}
+
+test fn test_extract_slug_too_few_parts() Void!Str {
+  let result = extract_slug("no-date-slug.md")
+  match result {
+    ok(_) => {
+      try testing::assert(false, "Expected error for filename with fewer than 3 dash parts")
+    },
+    err(msg) => {
+      try testing::assert(msg.contains("fewer"), "Expected error about too few parts")
+    },
+  }
+  testing::pass()
+}
+
+test fn test_extract_date_standard() Void!Str {
+  let date = try extract_date("2017-04-20-skinny-reducers.markdown")
+  try testing::assert(date == "2017-04-20", "Expected 2017-04-20")
+  testing::pass()
+}
+
+test fn test_extract_date_single_digit() Void!Str {
+  let date = try extract_date("2015-4-9-oloo.md")
+  try testing::assert(date == "2015-04-09", "Expected zero-padded 2015-04-09")
+  testing::pass()
+}
+
+test fn test_format_date_iso() Void!Str {
+  let formatted = format_date("2017-04-20T18:36:00Z")
+  try testing::assert(formatted == "Apr 20, 2017", "Expected Apr 20, 2017")
+  testing::pass()
+}
+
+test fn test_format_date_simple() Void!Str {
+  let formatted = format_date("2015-04-09")
+  try testing::assert(formatted == "Apr 9, 2015", "Expected Apr 9, 2015")
+  testing::pass()
+}
+
+test fn test_format_date_february() Void!Str {
+  let formatted = format_date("2014-02-18")
+  try testing::assert(formatted == "Feb 18, 2014", "Expected Feb 18, 2014")
+  testing::pass()
+}
+
+test fn test_apply_layout_replaces_all_placeholders() Void!Str {
+  let tpl = "<html><title>@@title@@</title><link href=\"@@canonical_url@@\" /><meta name=\"desc\" content=\"@@description@@\" /><body>@@content@@</body></html>"
+  let result = apply_layout(tpl, "My Page", "<p>Hello</p>", "https://example.com/", "A description")
+
+  try testing::assert(result.contains("My Page"), "Should contain title")
+  try testing::assert(result.contains("<p>Hello</p>"), "Should contain content")
+  try testing::assert(result.contains("example.com"), "Should contain canonical URL")
+  try testing::assert(result.contains("A description"), "Should contain description")
+  try testing::assert(not result.contains("@@title@@"), "Should not contain unreplaced placeholder")
+  testing::pass()
+}
+
+test fn test_apply_post_card_replaces_placeholders() Void!Str {
+  let post = Post {
+    slug: "test-post",
+    title: "Test Post",
+    date: "2024-01-15T00:00:00Z",
+    html: "<p>Body</p>",
+    excerpt: "A test excerpt",
+    url: "/blog/test-post",
+  }
+
+  let tpl = "<li><a href=\"@@url@@\">@@title@@</a><p>@@date@@</p><p>@@excerpt@@</p></li>"
+  let result = apply_post_card(tpl, post)
+
+  try testing::assert(result.contains("/blog/test-post"), "Should contain URL")
+  try testing::assert(result.contains("Test Post"), "Should contain title")
+  try testing::assert(result.contains("A test excerpt"), "Should contain excerpt")
+  try testing::assert(not result.contains("@@title@@"), "Should not contain raw placeholder")
+  testing::pass()
+}
+
+test fn test_xml_escape() Void!Str {
+  let escaped = xml_escape("Hello <world> & \"friends\"")
+  try testing::assert(escaped == "Hello &lt;world&gt; &amp; &quot;friends&quot;", "XML escape should work")
+  testing::pass()
+}
+
+test fn test_rss_date_format() Void!Str {
+  let result = rss_date("2017-04-20T18:36:00Z")
+  try testing::assert(result == "20 Apr 2017 00:00:00 GMT", "RSS date should be RFC 2822")
+  testing::pass()
+}
+
+test fn test_month_name() Void!Str {
+  try testing::assert(month_name("01") == "Jan", "01 -> Jan")
+  try testing::assert(month_name("12") == "Dec", "12 -> Dec")
+  try testing::assert(month_name("99") == "99", "99 -> 99 (fallback)")
+  testing::pass()
+}
+test fn test_rss_date_format() Void!Str {
+  let result = rss_date("2017-04-20T18:36:00Z")
+  try testing::assert(result == "20 Apr 2017 00:00:00 GMT", "RSS date should be RFC 2822")
+  testing::pass()
+}
+
+test fn test_month_name() Void!Str {
+  try testing::assert(month_name("01") == "Jan", "01 -> Jan")
+  try testing::assert(month_name("12") == "Dec", "12 -> Dec")
+  try testing::assert(month_name("99") == "99", "99 -> 99 (fallback)")
+  testing::pass()
+}
