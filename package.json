@@ -4,7 +4,7 @@
   "packageManager": "bun@1.2.16",
   "private": true,
   "scripts": {
-    "build": "ard build site.ard --target go --out site-gen && ./site-gen",
+    "build": "ard run site.ard",
     "test": "ard test site.ard",
     "clean": "rm -rf dist site-gen ard-out"
   }
