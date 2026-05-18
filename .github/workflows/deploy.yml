@@ -20,19 +20,33 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout blog repository
         uses: actions/checkout@v4
 
-      - name: Setup Go
+      - name: Checkout Ard compiler
+        uses: actions/checkout@v4
+        with:
+          repository: akonwi/ard
+          path: ard
+
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache: true
+          cache-dependency-path: ard/compiler/go.sum
+
+      - name: Download Go dependencies
+        working-directory: ard/compiler
+        run: go mod download
+
+      - name: Generate stdlib FFI bridge code
+        working-directory: ard/compiler
+        run: go generate -tags=goexperiment.jsonv2 ./std_lib/ffi
 
       - name: Build Ard compiler
-        run: |
-          git clone https://github.com/akonwi/ard.git
-          cd ard/compiler
-          go build -o ../../ard .
+        working-directory: ard/compiler
+        run: go build -tags=goexperiment.jsonv2 -o ${{ github.workspace }}/ard .
 
       - name: Build site
         run: ./ard build site.ard --target go --out site-gen && ./site-gen
