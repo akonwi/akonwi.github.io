@@ -46,10 +46,10 @@ jobs:
 
       - name: Build Ard compiler
         working-directory: ard/compiler
-        run: go build -tags=goexperiment.jsonv2 -o ${{ github.workspace }}/ard .
+        run: go build -tags=goexperiment.jsonv2 -o ${{ github.workspace }}/ard-compiler .
 
       - name: Build site
-        run: ./ard build site.ard --target go --out site-gen && ./site-gen
+        run: ./ard-compiler build site.ard --target go --out site-gen && ./site-gen
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

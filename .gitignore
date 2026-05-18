@@ -6,3 +6,4 @@ ard-out/
 dist
 node_modules
 site-gen
+ard-compiler
