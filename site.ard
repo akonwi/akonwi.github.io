@@ -248,15 +248,15 @@ fn build_feed(posts: [Post]) Void!Str {
   try fs::write("dist/feed.xml", feed)
   Result::ok(())
 }
-fn build_posts() [Post]!Str {
-  let entries = try fs::list_dir("_posts")
+fn buildposts() [Post]!Str {
+  let entries = try fs::list_dir("posts")
   mut posts: [Post] = []
 
   for entry in entries {
     if entry.is_file {
       let name = entry.name
       if name.contains(".md") or name.contains(".markdown") {
-        let file_path = "_posts/{name}"
+        let file_path = "posts/{name}"
         let content = try fs::read(file_path)
         let meta_json = try parse_frontmatter(content)
         let meta = try decode::from_json(meta_json)
@@ -315,7 +315,7 @@ fn build_site() Void!Str {
   try fs::create_dir("dist")
   try fs::create_dir("dist/blog")
 
-  let posts = try build_posts()
+  let posts = try buildposts()
 
   try build_index(posts)
 
