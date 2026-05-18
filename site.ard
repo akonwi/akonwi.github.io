@@ -319,8 +319,8 @@ fn build_site() Void!Str {
 
   try build_index(posts)
 
-  try build_page("src/content/pages/about.md", "dist/about/index.html", "About | akonwi", "/about/")
-  try build_page("src/content/pages/projects.md", "dist/projects/index.html", "Projects | akonwi", "/projects/")
+  try build_page("pages/about.md", "dist/about/index.html", "About | akonwi", "/about/")
+  try build_page("pages/projects.md", "dist/projects/index.html", "Projects | akonwi", "/projects/")
 
   try build_feed(posts)
 
