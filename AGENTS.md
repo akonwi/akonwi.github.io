@@ -75,7 +75,7 @@ ard test site.ard --filter test_format_date     # run tests matching "test_forma
 - Use `try` for error propagation, `match` on `Result` for error handling.
 - End `Void!Str` functions with `Result::ok(())`.
 - Use `match` on Bool for conditional returns (not `if` as expression).
-- Avoid function calls with string literal args inside `{interpolation}` (parser bug).
+- Function calls with string literal args inside `{interpolation}` are now supported (fixed in v0.18.0).
 - Use `for item in list` or `for item, index in list` for iteration.
 - Use `not` for negation, `or` for logical-or (not `!` or `||`).
 - No `return` keyword — last expression is the return value.

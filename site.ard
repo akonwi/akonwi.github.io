@@ -30,8 +30,8 @@ struct Post {
 
 fn remove_ext(filename: Str) Str {
   match {
-    filename.contains(".markdown") => filename.replace_all(".markdown", ""),
-    filename.contains(".md") => filename.replace_all(".md", ""),
+    filename.ends_with(".markdown") => filename.replace_all(".markdown", ""),
+    filename.ends_with(".md") => filename.replace_all(".md", ""),
     _ => filename,
   }
 }
@@ -84,15 +84,21 @@ fn extract_date(filename: Str) Str!Str {
 // ============================================================
 
 fn month_name(month_str: Str) Str {
-  let names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-  let codes = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
-  mut name = month_str
-  for code, i in codes {
-    if month_str == code {
-      name = names.at(i)
-    }
+  match month_str {
+    "01" => "Jan",
+    "02" => "Feb",
+    "03" => "Mar",
+    "04" => "Apr",
+    "05" => "May",
+    "06" => "Jun",
+    "07" => "Jul",
+    "08" => "Aug",
+    "09" => "Sep",
+    "10" => "Oct",
+    "11" => "Nov",
+    "12" => "Dec",
+    _ => month_str,
   }
-  name
 }
 
 fn strip_time(date_str: Str) Str {
@@ -104,7 +110,7 @@ fn strip_time(date_str: Str) Str {
 
 fn strip_leading_zero(day_str: Str) Str {
   match day_str.starts_with("0") {
-    true => day_str.replace_all("0", ""),
+    true => day_str.at(1).or(day_str),
     false => day_str,
   }
 }
@@ -229,8 +235,6 @@ fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_pat
 
 fn build_feed(posts: [Post]) Void!Str {
   let now = rss_date(extract_date_from_posts(posts))
-  let feed_title = xml_escape("akonwi")
-  let feed_desc = xml_escape("My ramblings...")
 
   mut items = ""
   for post in posts {
@@ -243,7 +247,7 @@ fn build_feed(posts: [Post]) Void!Str {
     items =+ "  </item>\n"
   }
 
-  let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{feed_title}</title>\n<description>{feed_desc}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
+  let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{xml_escape(\"akonwi\")}</title>\n<description>{xml_escape(\"My ramblings...\")}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
 
   try fs::write("dist/feed.xml", feed)
   Result::ok(())
@@ -255,7 +259,7 @@ fn buildposts() [Post]!Str {
   for entry in entries {
     if entry.is_file {
       let name = entry.name
-      if name.contains(".md") or name.contains(".markdown") {
+      if name.ends_with(".md") or name.ends_with(".markdown") {
         let file_path = "posts/{name}"
         let content = try fs::read(file_path)
         let meta_json = try parse_frontmatter(content)
