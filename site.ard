@@ -247,7 +247,7 @@ fn build_feed(posts: [Post]) Void!Str {
     items =+ "  </item>\n"
   }
 
-  let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{xml_escape(\"akonwi\")}</title>\n<description>{xml_escape(\"My ramblings...\")}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
+  let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{xml_escape("akonwi")}</title>\n<description>{xml_escape("My ramblings...")}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
 
   try fs::write("dist/feed.xml", feed)
   Result::ok(())
