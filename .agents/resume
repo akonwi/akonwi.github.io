@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="${HOME}/.local/bin:${PATH}"
+
+command -v go >/dev/null 2>&1 || {
+  echo "Go is missing; rerun .agents/setup." >&2
+  exit 1
+}
+command -v ard >/dev/null 2>&1 || {
+  echo "Ard is missing; rerun .agents/setup." >&2
+  exit 1
+}
+
+echo "Orb resumed; this repository has no local services to reconnect."

@@ -1,15 +1,12 @@
-use ard/fs
-use ard/io
-use ard/decode
-use ard/maybe
 use ard/testing
 
-// ============================================================
-// Extern FFI — Go functions in ffi.go
-// ============================================================
+use go:akonwi-blog/ffi
+use go:fmt
+use go:strings
 
-extern fn md_to_html(markdown: Str) Str!Str = "MarkdownToHTML"
-extern fn parse_frontmatter(content: Str) Str!Str = "ParseFrontmatter"
+// ============================================================
+// Project FFI — Go functions in ffi/ffi.go
+// ============================================================
 
 // ============================================================
 // Data types
@@ -38,7 +35,7 @@ fn remove_ext(filename: Str) Str {
 
 fn extract_slug(filename: Str) Str!Str {
   let base = remove_ext(filename)
-  let parts = base.split("-")
+  let parts = strings::Split(base, "-")
 
   match parts.size() < 4 {
     true => Result::err("Filename {filename} has fewer than 4 dash-separated parts"),
@@ -59,13 +56,14 @@ fn extract_slug(filename: Str) Str!Str {
 
 fn extract_date(filename: Str) Str!Str {
   let base = remove_ext(filename)
-  let parts = base.split("-")
+  let parts = strings::Split(base, "-")
 
   match parts.size() < 3 {
     true => Result::err("Filename {filename} has fewer than 3 dash-separated parts"),
     false => {
-      mut month = parts.at(1)
-      mut day = parts.at(2)
+      let year = parts.at(0).or("")
+      mut month = parts.at(1).or("")
+      mut day = parts.at(2).or("")
 
       if month.size() == 1 {
         month = "0{month}"
@@ -74,7 +72,7 @@ fn extract_date(filename: Str) Str!Str {
         day = "0{day}"
       }
 
-      Result::ok("{parts.at(0)}-{month}-{day}")
+      Result::ok("{year}-{month}-{day}")
     },
   }
 }
@@ -103,26 +101,26 @@ fn month_name(month_str: Str) Str {
 
 fn strip_time(date_str: Str) Str {
   match date_str.contains("T") {
-    true => date_str.split("T").at(0),
+    true => strings::Split(date_str, "T").at(0).or(date_str),
     false => date_str,
   }
 }
 
 fn strip_leading_zero(day_str: Str) Str {
   match day_str.starts_with("0") {
-    true => day_str.at(1).or(day_str),
+    true => strings::TrimPrefix(day_str, "0"),
     false => day_str,
   }
 }
 
 fn format_date(date_str: Str) Str {
-  let parts = date_str.split("-")
+  let parts = strings::Split(date_str, "-")
   match parts.size() < 3 {
     true => date_str,
     false => {
-      let year = parts.at(0)
-      let month_str = parts.at(1)
-      let day_full = parts.at(2)
+      let year = parts.at(0).or("")
+      let month_str = parts.at(1).or("")
+      let day_full = parts.at(2).or("")
       let day = strip_time(day_full)
       let mname = month_name(month_str)
       let day_num = strip_leading_zero(day)
@@ -132,13 +130,13 @@ fn format_date(date_str: Str) Str {
 }
 
 fn rss_date(date_str: Str) Str {
-  let parts = date_str.split("-")
+  let parts = strings::Split(date_str, "-")
   match parts.size() < 3 {
     true => date_str,
     false => {
-      let year = parts.at(0)
-      let month_str = parts.at(1)
-      let day_full = parts.at(2)
+      let year = parts.at(0).or("")
+      let month_str = parts.at(1).or("")
+      let day_full = parts.at(2).or("")
       let day = strip_time(day_full)
       let mname = month_name(month_str)
       "{day} {mname} {year} 00:00:00 GMT"
@@ -179,10 +177,13 @@ fn xml_escape(s: Str) Str {
 }
 
 fn extract_date_from_posts(posts: [Post]) Str {
-  match posts.size() {
-    0 => "2024-01-01",
-    _ => posts.at(0).date,
+  mut date = "2024-01-01"
+  for post, index in posts {
+    if index == 0 {
+      date = post.date
+    }
   }
+  date
 }
 
 // ============================================================
@@ -190,20 +191,20 @@ fn extract_date_from_posts(posts: [Post]) Str {
 // ============================================================
 
 fn build_post_page(post: Post) Void!Str {
-  let layout_tpl = try fs::read("templates/layout.html")
+  let layout_tpl = try ffi::ReadFile("templates/layout.html")
   let canonical = "https://akonwi.io{post.url}"
 
   let article = "<article class=\"post post-page\">\n<header class=\"post-header\">\n<h1>{post.title}</h1>\n<p class=\"meta\">{format_date(post.date)}</p>\n</header>\n<div class=\"post-content\">{post.html}</div>\n</article>"
 
   let page = apply_layout(layout_tpl, "{post.title} | akonwi", article, canonical, "My ramblings...")
-  try fs::create_dir("dist/blog/{post.slug}")
-  try fs::write("dist/blog/{post.slug}/index.html", page)
+  try ffi::CreateDir("dist/blog/{post.slug}")
+  try ffi::WriteFile("dist/blog/{post.slug}/index.html", page)
   Result::ok(())
 }
 
 fn build_index(posts: [Post]) Void!Str {
-  let layout_tpl = try fs::read("templates/layout.html")
-  let card_tpl = try fs::read("templates/post-card.html")
+  let layout_tpl = try ffi::ReadFile("templates/layout.html")
+  let card_tpl = try ffi::ReadFile("templates/post-card.html")
 
   mut list_html = ""
   for post in posts {
@@ -214,22 +215,22 @@ fn build_index(posts: [Post]) Void!Str {
   let canonical = "https://akonwi.io/"
 
   let page = apply_layout(layout_tpl, "akonwi", content, canonical, "My ramblings...")
-  try fs::write("dist/index.html", page)
+  try ffi::WriteFile("dist/index.html", page)
   Result::ok(())
 }
 
 fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_path: Str) Void!Str {
-  let content_raw = try fs::read(source_path)
-  let html = try md_to_html(content_raw)
+  let content_raw = try ffi::ReadFile(source_path)
+  let html = try ffi::MarkdownToHTML(content_raw)
 
-  let layout_tpl = try fs::read("templates/layout.html")
+  let layout_tpl = try ffi::ReadFile("templates/layout.html")
 
   let content = "<section class=\"post page-content\">\n<header class=\"post-header\">\n<h2>{page_title}</h2>\n</header>\n<div class=\"post-content\">{html}</div>\n</section>"
   let canonical = "https://akonwi.io{canonical_path}"
 
   let page = apply_layout(layout_tpl, page_title, content, canonical, "My ramblings...")
-  try fs::create_dir(output_path.replace_all("/index.html", ""))
-  try fs::write(output_path, page)
+  try ffi::CreateDir(output_path.replace_all("/index.html", ""))
+  try ffi::WriteFile(output_path, page)
   Result::ok(())
 }
 
@@ -249,63 +250,40 @@ fn build_feed(posts: [Post]) Void!Str {
 
   let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{xml_escape("akonwi")}</title>\n<description>{xml_escape("My ramblings...")}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
 
-  try fs::write("dist/feed.xml", feed)
+  try ffi::WriteFile("dist/feed.xml", feed)
   Result::ok(())
 }
 fn buildposts() [Post]!Str {
-  let entries = try fs::list_dir("posts")
+  let entries = try ffi::ListFiles("posts")
   mut posts: [Post] = []
 
-  for entry in entries {
-    if entry.is_file {
-      let name = entry.name
-      if name.ends_with(".md") or name.ends_with(".markdown") {
-        let file_path = "posts/{name}"
-        let content = try fs::read(file_path)
-        let meta_json = try parse_frontmatter(content)
-        let meta = try decode::from_json(meta_json)
+  for name in entries {
+    if name.ends_with(".md") or name.ends_with(".markdown") {
+      let file_path = "posts/{name}"
+      let meta = try ffi::ParseFrontmatter(try ffi::ReadFile(file_path))
 
-        let pub_result = decode::run(meta, decode::field("published", decode::bool))
-        let is_published = match pub_result {
-          ok(v) => v,
-          err(_) => true,
+      if meta.Published {
+        let slug = try extract_slug(name)
+        let date_str = try extract_date(name)
+
+        let post_date = match meta.DateISO.is_empty() {
+          true => date_str,
+          false => meta.DateISO,
         }
 
-        if is_published {
-          let slug = try extract_slug(name)
-          let date_str = try extract_date(name)
-          let title = try decode::run(meta, decode::field("title", decode::string)) -> errs {
-            Result::err("title: {decode::flatten(errs)}")
-          }
-          let body_md = try decode::run(meta, decode::field("body_md", decode::string)) -> errs {
-            Result::err("body: {decode::flatten(errs)}")
-          }
-          let excerpt = try decode::run(meta, decode::field("excerpt", decode::string)) -> errs {
-            Result::err("excerpt: {decode::flatten(errs)}")
-          }
-          let date_iso = try decode::run(meta, decode::field("date_iso", decode::string)) -> errs {
-            Result::err("date: {decode::flatten(errs)}")
-          }
+        let html = try ffi::MarkdownToHTML(meta.BodyMD)
 
-          let post_date = match date_iso.is_empty() {
-            true => date_str,
-            false => date_iso,
-          }
-
-          let html = try md_to_html(body_md)
-
-          let post = Post {
-            slug: slug,
-            title: title,
-            date: post_date,
-            html: html,
-            excerpt: excerpt,
-            url: "/blog/{slug}",
-          }
-
-          try build_post_page(post)
-          posts.push(post)
+        let post = Post{
+          slug: slug,
+          title: meta.Title,
+          date: post_date,
+          html: html,
+          excerpt: meta.Excerpt,
+          url: "/blog/{slug}",
         }
+
+        try build_post_page(post)
+        posts.push(post)
       }
     }
   }
@@ -314,10 +292,10 @@ fn buildposts() [Post]!Str {
 }
 
 fn build_site() Void!Str {
-  io::print("Building site...")
+  try fmt::Println("Building site...")
 
-  try fs::create_dir("dist")
-  try fs::create_dir("dist/blog")
+  try ffi::CreateDir("dist")
+  try ffi::CreateDir("dist/blog")
 
   let posts = try buildposts()
 
@@ -328,17 +306,20 @@ fn build_site() Void!Str {
 
   try build_feed(posts)
 
-  try fs::create_dir("dist/css")
-  try fs::copy("css/style.css", "dist/css/style.css")
-  try fs::copy("css/syntax.css", "dist/css/syntax.css")
-  try fs::write("dist/CNAME", "akonwi.io")
+  try ffi::CreateDir("dist/css")
+  try ffi::CopyFile("css/style.css", "dist/css/style.css")
+  try ffi::CopyFile("css/syntax.css", "dist/css/syntax.css")
+  try ffi::WriteFile("dist/CNAME", "akonwi.io")
 
-  io::print("Done! Site built to dist")
+  try fmt::Println("Done! Site built to dist")
   Result::ok(())
 }
 
 fn main() {
-  try build_site() -> err { io::print(err) }
+  try build_site() -> err {
+    try fmt::Println(err) -> print_err { panic(print_err) }
+    ()
+  }
 }
 
 // ============================================================
@@ -347,7 +328,10 @@ fn main() {
 
 test fn test_remove_ext_markdown() Void!Str {
   let base = remove_ext("2017-01-10-introducing-jest-into-a-react-project.markdown")
-  try testing::assert(base == "2017-01-10-introducing-jest-into-a-react-project", "Should remove .markdown")
+  try testing::assert(
+    base == "2017-01-10-introducing-jest-into-a-react-project",
+    "Should remove .markdown",
+  )
   testing::pass()
 }
 
@@ -372,12 +356,8 @@ test fn test_extract_slug_md_extension() Void!Str {
 test fn test_extract_slug_too_few_parts() Void!Str {
   let result = extract_slug("no-date-slug.md")
   match result {
-    ok(_) => {
-      try testing::assert(false, "Expected error for filename with fewer than 3 dash parts")
-    },
-    err(msg) => {
-      try testing::assert(msg.contains("fewer"), "Expected error about too few parts")
-    },
+    ok(_) => try testing::assert(false, "Expected error for filename with fewer than 3 dash parts"),
+    err(msg) => try testing::assert(msg.contains("fewer"), "Expected error about too few parts"),
   }
   testing::pass()
 }
@@ -425,7 +405,7 @@ test fn test_apply_layout_replaces_all_placeholders() Void!Str {
 }
 
 test fn test_apply_post_card_replaces_placeholders() Void!Str {
-  let post = Post {
+  let post = Post{
     slug: "test-post",
     title: "Test Post",
     date: "2024-01-15T00:00:00Z",
@@ -446,22 +426,13 @@ test fn test_apply_post_card_replaces_placeholders() Void!Str {
 
 test fn test_xml_escape() Void!Str {
   let escaped = xml_escape("Hello <world> & \"friends\"")
-  try testing::assert(escaped == "Hello &lt;world&gt; &amp; &quot;friends&quot;", "XML escape should work")
+  try testing::assert(
+    escaped == "Hello &lt;world&gt; &amp; &quot;friends&quot;",
+    "XML escape should work",
+  )
   testing::pass()
 }
 
-test fn test_rss_date_format() Void!Str {
-  let result = rss_date("2017-04-20T18:36:00Z")
-  try testing::assert(result == "20 Apr 2017 00:00:00 GMT", "RSS date should be RFC 2822")
-  testing::pass()
-}
-
-test fn test_month_name() Void!Str {
-  try testing::assert(month_name("01") == "Jan", "01 -> Jan")
-  try testing::assert(month_name("12") == "Dec", "12 -> Dec")
-  try testing::assert(month_name("99") == "99", "99 -> 99 (fallback)")
-  testing::pass()
-}
 test fn test_rss_date_format() Void!Str {
   let result = rss_date("2017-04-20T18:36:00Z")
   try testing::assert(result == "20 Apr 2017 00:00:00 GMT", "RSS date should be RFC 2822")

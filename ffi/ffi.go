@@ -1,8 +1,8 @@
-package main
+package ffi
 
 import (
-	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -10,34 +10,32 @@ import (
 
 // ============================================================
 // ParseFrontmatter — splits YAML frontmatter from markdown body
-// Returns JSON: { title, date_iso, categories[], body_md, excerpt }
 // ============================================================
 
-func ParseFrontmatter(content string) (string, error) {
+type Frontmatter struct {
+	Title     string
+	DateISO   string
+	BodyMD    string
+	Excerpt   string
+	Published bool
+}
+
+func ParseFrontmatter(content string) (Frontmatter, error) {
 	content = strings.TrimSpace(content)
 	if !strings.HasPrefix(content, "---") {
 		// No frontmatter — treat entire content as body
-		excerpt := extractExcerpt(content)
-		out := map[string]any{
-			"title":      "",
-			"date_iso":   "",
-			"categories": []string{},
-			"body_md":    content,
-			"excerpt":    excerpt,
-			"published":  true,
-		}
-		encoded, err := json.Marshal(out)
-		if err != nil {
-			return "", fmt.Errorf("encode content: %w", err)
-		}
-		return string(encoded), nil
+		return Frontmatter{
+			BodyMD:    content,
+			Excerpt:   extractExcerpt(content),
+			Published: true,
+		}, nil
 	}
 
 	// Find closing ---
 	rest := content[3:]
 	endIdx := strings.Index(rest, "\n---")
 	if endIdx < 0 {
-		return "", fmt.Errorf("unclosed frontmatter")
+		return Frontmatter{}, fmt.Errorf("unclosed frontmatter")
 	}
 
 	yamlBlock := strings.TrimSpace(rest[:endIdx])
@@ -58,11 +56,6 @@ func ParseFrontmatter(content string) (string, error) {
 		}
 	}
 
-	categories := []string{}
-	if v, ok := front["categories"]; ok {
-		categories = parseYAMLList(v)
-	}
-
 	excerpt := extractExcerpt(bodyMD)
 
 	published := true
@@ -70,21 +63,13 @@ func ParseFrontmatter(content string) (string, error) {
 		published = v == "true"
 	}
 
-	out := map[string]any{
-		"title":      title,
-		"date_iso":   dateISO,
-		"categories": categories,
-		"body_md":    bodyMD,
-		"excerpt":    excerpt,
-		"published":  published,
-	}
-
-	encoded, err := json.Marshal(out)
-	if err != nil {
-		return "", fmt.Errorf("encode frontmatter: %w", err)
-	}
-
-	return string(encoded), nil
+	return Frontmatter{
+		Title:     title,
+		DateISO:   dateISO,
+		BodyMD:    bodyMD,
+		Excerpt:   excerpt,
+		Published: published,
+	}, nil
 }
 
 // Simple YAML parser for frontmatter subset
@@ -138,18 +123,6 @@ func parseYAMLSimple(yaml string) map[string]string {
 	return out
 }
 
-func parseYAMLList(value string) []string {
-	parts := strings.Split(value, "\x00")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
 func parseDateValue(value string) (time.Time, error) {
 	formats := []string{
 		"2006-01-02 15:04",
@@ -174,14 +147,54 @@ func stripQuotes(s string) string {
 }
 
 // ============================================================
+// Site I/O — thin adapters for Ard's Go FFI boundary
+// ============================================================
+
+func ReadFile(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	return string(content), err
+}
+
+func WriteFile(path, content string) error {
+	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+func CreateDir(path string) error {
+	return os.MkdirAll(path, 0o755)
+}
+
+func CopyFile(source, destination string) error {
+	content, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(destination, content, 0o644)
+}
+
+func ListFiles(path string) ([]string, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			files = append(files, entry.Name())
+		}
+	}
+	return files, nil
+}
+
+// ============================================================
 // MarkdownToHTML — renders markdown to HTML (stdlib only)
 // ============================================================
 
 var (
 	headingRegex  = regexp.MustCompile(`^(#{1,6})\s+(.+)$`)
-	codeFence    = regexp.MustCompile("^```(\\w*)$")
-	blockquoteRx = regexp.MustCompile(`^>\s?(.*)$`)
-	listItemRx   = regexp.MustCompile(`^[-*]\s+(.+)$`)
+	codeFence     = regexp.MustCompile("^```(\\w*)$")
+	blockquoteRx  = regexp.MustCompile(`^>\s?(.*)$`)
+	listItemRx    = regexp.MustCompile(`^[-*]\s+(.+)$`)
 	thematicBreak = regexp.MustCompile(`^[-*_]{3,}\s*$`)
 )
 

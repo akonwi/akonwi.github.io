@@ -27,12 +27,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: akonwi/ard
+          ref: v0.28.0
           path: ard
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.26"
           cache: true
           cache-dependency-path: ard/compiler/go.sum
 
@@ -40,16 +41,12 @@ jobs:
         working-directory: ard/compiler
         run: go mod download
 
-      - name: Generate stdlib FFI bridge code
-        working-directory: ard/compiler
-        run: go generate -tags=goexperiment.jsonv2 ./std_lib/ffi
-
       - name: Build Ard compiler
         working-directory: ard/compiler
         run: go build -tags=goexperiment.jsonv2 -o ${{ github.workspace }}/ard-compiler .
 
       - name: Build site
-        run: ./ard-compiler run site.ard --target go
+        run: ./ard-compiler run site.ard
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

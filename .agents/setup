@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARD_VERSION="0.28.0"
+ARD_COMMIT="58af0dd1509b279daaf631ee9cb7dc1d329a0f84"
+GO_VERSION="1.26.5"
+BIN_DIR="${HOME}/.local/bin"
+TOOLS_DIR="${HOME}/.local/share"
+ARD_SOURCE_DIR="${TOOLS_DIR}/ard-v${ARD_VERSION}"
+
+case "$(uname -m)" in
+  x86_64)
+    ARCH="amd64"
+    GO_SHA256="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053"
+    ;;
+  aarch64|arm64)
+    ARCH="arm64"
+    GO_SHA256="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49"
+    ;;
+  *)
+    echo "Unsupported architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+for command_name in curl git sha256sum tar; do
+  if ! command -v "${command_name}" >/dev/null 2>&1; then
+    echo "Required command is missing: ${command_name}" >&2
+    exit 1
+  fi
+done
+
+mkdir -p "${BIN_DIR}" "${TOOLS_DIR}"
+export PATH="${BIN_DIR}:${PATH}"
+
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "${tmp_dir}"' EXIT
+
+if ! go version 2>/dev/null | grep -q "go${GO_VERSION}"; then
+  echo "Installing Go ${GO_VERSION} for linux/${ARCH}..."
+  go_archive="${tmp_dir}/go.tar.gz"
+  curl --fail --location --retry 3 \
+    --output "${go_archive}" \
+    "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz"
+  echo "${GO_SHA256}  ${go_archive}" | sha256sum --check --status
+  tar -xzf "${go_archive}" -C "${tmp_dir}"
+  rm -rf "${TOOLS_DIR}/go"
+  mv "${tmp_dir}/go" "${TOOLS_DIR}/go"
+  ln -sfn "${TOOLS_DIR}/go/bin/go" "${BIN_DIR}/go"
+  ln -sfn "${TOOLS_DIR}/go/bin/gofmt" "${BIN_DIR}/gofmt"
+else
+  echo "Go ${GO_VERSION} is already available."
+fi
+
+if ! ard version 2>/dev/null | grep -q "${ARD_VERSION}" ||
+  [[ ! -f "${ARD_SOURCE_DIR}/.orb-install-complete" ]]; then
+  echo "Installing Ard ${ARD_VERSION} from its pinned release tag..."
+  # Ard embeds its source path in generated Go module replacements, so
+  # its source must remain at the same path where the CLI was compiled.
+  rm -rf "${ARD_SOURCE_DIR}"
+  git -c advice.detachedHead=false clone --quiet --depth 1 --branch "v${ARD_VERSION}" \
+    https://github.com/akonwi/ard.git "${ARD_SOURCE_DIR}"
+  if [[ "$(git -C "${ARD_SOURCE_DIR}" rev-parse HEAD)" != "${ARD_COMMIT}" ]]; then
+    echo "Ard v${ARD_VERSION} did not resolve to the expected commit." >&2
+    exit 1
+  fi
+  (
+    cd "${ARD_SOURCE_DIR}/compiler"
+    go mod download
+    go build -tags=goexperiment.jsonv2 \
+      -ldflags="-X github.com/akonwi/ard/version.Version=v${ARD_VERSION}" \
+      -o "${BIN_DIR}/ard" .
+  )
+  touch "${ARD_SOURCE_DIR}/.orb-install-complete"
+else
+  echo "Ard ${ARD_VERSION} is already available."
+fi
+
+echo "Orb setup complete:"
+go version
+ard version
