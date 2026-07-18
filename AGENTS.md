@@ -6,7 +6,7 @@ Repository guidance for coding agents working in this project.
 - Purpose: Personal blog/site with posts, pages, and RSS.
 - Content source: markdown in `posts/` and `pages/`.
 - Build output: `dist/` directory.
-- SSG source: `site.ard` (Ard) + `ffi.go` (Go FFI externs).
+- SSG source: `site.ard` (Ard with direct Go standard-library imports).
 
 ## URL Requirements
 - Blog posts: `/blog/:title` (slug derived from filename).
@@ -21,7 +21,6 @@ Repository guidance for coding agents working in this project.
 
 ### SSG
 - `site.ard` — main SSG program (Ard source). Contains data types, template rendering, build functions, and unit tests.
-- `ffi.go` — Go FFI externs: `ParseFrontmatter` (YAML frontmatter → JSON) and `MarkdownToHTML` (markdown → HTML).
 - `ard.toml` — Ard project config.
 - `templates/layout.html` — full HTML shell with `@@title@@`, `@@content@@`, `@@canonical_url@@`, `@@description@@` placeholders.
 - `templates/post-card.html` — post list item partial with `@@url@@`, `@@title@@`, `@@date@@`, `@@excerpt@@` placeholders.
@@ -34,9 +33,9 @@ Repository guidance for coding agents working in this project.
 ## Build Commands
 Primary development commands (run from repo root):
 ```bash
-ard build site.ard --target go --out site-gen    # compile SSG to native binary
+ard build site.ard --out site-gen                # compile SSG to native binary
 ./site-gen                                         # generate dist/
-ard test site.ard                                  # run 17 unit tests
+ard test site.ard                                  # run 23 unit tests
 ```
 
 Package.json scripts:
@@ -47,8 +46,8 @@ bun run clean    # removes dist/, site-gen, ard-out/
 ```
 
 Current quality gate:
-- `ard test site.ard` must pass (17 tests: slug extraction, date parsing, formatting, templates, XML escaping).
-- `ard build site.ard --target go --out site-gen` must succeed.
+- `ard test site.ard` must pass (23 tests: slugs, dates, frontmatter, Markdown, templates, XML escaping).
+- `ard build site.ard --out site-gen` must succeed.
 - `./site-gen` must complete without errors.
 
 ## Running a Single Test
@@ -67,8 +66,8 @@ ard test site.ard --filter test_format_date     # run tests matching "test_forma
 - Avoid unrelated refactors in feature/bugfix changes.
 
 ### Ard Source (`site.ard`)
-- Import stdlib modules at top: `ard/fs`, `ard/io`, `ard/decode`, `ard/maybe`, `ard/testing`.
-- Extern FFI functions use shorthand syntax: `extern fn name(args) RetType = "GoFuncName"`.
+- Import Ard and Go standard-library modules at top with `use`; Ard v0.28 supports direct Go imports such as `use go:os`.
+- Keep frontmatter parsing, Markdown rendering, and site generation in Ard.
 - Define `struct` types before functions that use them.
 - Functions must be defined before they are called (no hoisting).
 - Return types: `Void!Str` for fallible functions, `Str` for pure functions.
@@ -81,11 +80,10 @@ ard test site.ard --filter test_format_date     # run tests matching "test_forma
 - No `return` keyword — last expression is the return value.
 - No `continue` keyword — use nested `if` instead.
 
-### Go FFI (`ffi.go`)
-- Functions return `(string, error)` for Ard `Str!Str` types.
-- Frontmatter parsing returns JSON string that Ard decodes via `ard/decode`.
-- Markdown renderer uses Go stdlib only (no external dependencies).
-- Keep the extern surface minimal — two functions currently.
+### Direct Go Interop
+- Prefer direct Go standard-library imports over project FFI shims.
+- Go `(T, error)` functions map to Ard `T!Str` and should use `try` for propagation.
+- Go byte slices map to `[Byte]`; convert text with `Str::from(bytes)` and `text.bytes()`.
 
 ### Templates
 - Use `@@placeholder@@` syntax (not `{{...}}` — Ard interprets `{}` as interpolation).
@@ -127,8 +125,7 @@ ard test site.ard --filter test_format_date     # run tests matching "test_forma
 ## Agent Workflow Expectations
 - Inspect nearby files for local conventions before editing.
 - Run `ard test site.ard` after changes.
-- Run `ard build site.ard --target go --out site-gen && ./site-gen` for full verification.
+- Run `ard build site.ard --out site-gen && ./site-gen` for full verification.
 - Call out assumptions and unverified behavior in your handoff.
 - Do not commit generated output (`dist/`, `site-gen`, `ard-out/`) unless explicitly requested.
-- Updates to FFI (`ffi.go`) require a rebuild of the binary.
 - New template placeholders must use `@@name@@` syntax and be added to `apply_layout()` or `apply_post_card()`.
