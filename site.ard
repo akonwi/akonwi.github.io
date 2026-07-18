@@ -1,12 +1,10 @@
 use ard/testing
 
-use go:akonwi-blog/ffi
 use go:fmt
+use go:os
+use go:regexp
 use go:strings
-
-// ============================================================
-// Project FFI — Go functions in ffi/ffi.go
-// ============================================================
+use go:time
 
 // ============================================================
 // Data types
@@ -19,6 +17,14 @@ struct Post {
   html: Str,
   excerpt: Str,
   url: Str,
+}
+
+struct Frontmatter {
+  title: Str,
+  date_iso: Str,
+  body_md: Str,
+  excerpt: Str,
+  published: Bool,
 }
 
 // ============================================================
@@ -186,25 +192,342 @@ fn extract_date_from_posts(posts: [Post]) Str {
   date
 }
 
+fn read_text(path: Str) Str!Str {
+  let bytes = try os::ReadFile(path)
+  Result::ok(Str::from(bytes))
+}
+
+fn write_text(path: Str, content: Str) Void!Str {
+  mut bytes = content.bytes()
+  try os::WriteFile(path, bytes, 420)
+  Result::ok(())
+}
+
+fn copy_file(source: Str, destination: Str) Void!Str {
+  mut bytes = try os::ReadFile(source)
+  try os::WriteFile(destination, bytes, 420)
+  Result::ok(())
+}
+
+fn parse_date_value(value: Str) Str {
+  let formats = ["2006-01-02 15:04", "2006-01-02", time::RFC3339]
+  mut date_iso = ""
+
+  for format in formats {
+    if date_iso.is_empty() {
+      match time::Parse(format, value) {
+        ok(parsed) => { date_iso = parsed.Format(time::RFC3339) },
+        err(_) => (),
+      }
+    }
+  }
+
+  date_iso
+}
+
+fn strip_quotes(value: Str) Str {
+  match value.size() >= 2 {
+    false => value,
+    true => {
+      match {
+        value.starts_with("\"") and value.ends_with("\"") => {
+          strings::TrimSuffix(strings::TrimPrefix(value, "\""), "\"")
+        },
+        value.starts_with("'") and value.ends_with("'") => {
+          strings::TrimSuffix(strings::TrimPrefix(value, "'"), "'")
+        },
+        _ => value,
+      }
+    },
+  }
+}
+
+fn parse_frontmatter(content: Str) Frontmatter!Str {
+  let trimmed = strings::TrimSpace(content)
+  if not trimmed.starts_with("---") {
+    Result::ok(
+      Frontmatter{
+        title: "",
+        date_iso: "",
+        body_md: trimmed,
+        excerpt: extract_excerpt(trimmed),
+        published: true,
+      },
+    )
+  } else {
+    let rest = strings::TrimPrefix(trimmed, "---")
+    let sections = strings::SplitN(rest, "\n---", 2)
+    if sections.size() < 2 {
+      Result::err("unclosed frontmatter")
+    } else {
+      let yaml = strings::TrimSpace(sections.at(0).or(""))
+      let body_md = strings::TrimSpace(sections.at(1).or(""))
+
+      mut values: [Str: Str] = [:]
+      let field_regex = regexp::MustCompile("^([^:]+):(.*)$")
+      let lines = strings::Split(yaml, "\n")
+      mut current_key = ""
+      mut current_list: [Str] = []
+
+      for line in lines {
+        let line = strings::TrimSpace(line)
+        if not line.is_empty() {
+          if line.starts_with("- ") {
+            if not current_key.is_empty() {
+              current_list.push(strings::TrimSpace(strings::TrimPrefix(line, "- ")))
+            }
+          } else {
+            let matches = field_regex.FindStringSubmatch(line)
+            if matches.size() >= 3 {
+              if (not current_key.is_empty()) and current_list.size() > 0 {
+                values.set(current_key, strings::Join(current_list, "\\x00"))
+              }
+
+              let key = strings::TrimSpace(matches.at(1).or(""))
+              let value = strip_quotes(strings::TrimSpace(matches.at(2).or("")))
+              current_key = key
+              let empty_list: [Str] = []
+              current_list = empty_list
+              if not value.is_empty() {
+                values.set(key, value)
+                current_key = ""
+              }
+            }
+          }
+        }
+      }
+      if (not current_key.is_empty()) and current_list.size() > 0 {
+        values.set(current_key, strings::Join(current_list, "\\x00"))
+      }
+
+      let title = values.get("title").or("")
+      let date_iso = parse_date_value(values.get("date").or(""))
+      let published = values.get("published").or("true") == "true"
+      Result::ok(
+        Frontmatter{
+          title: title,
+          date_iso: date_iso,
+          body_md: body_md,
+          excerpt: extract_excerpt(body_md),
+          published: published,
+        },
+      )
+    }
+  }
+}
+
+fn html_escape(s: Str) Str {
+  mut out = s.replace_all("&", "&amp;")
+  out = out.replace_all("<", "&lt;")
+  out = out.replace_all(">", "&gt;")
+  out = out.replace_all("\"", "&quot;")
+  out
+}
+
+fn render_inline_code(text: Str) Str {
+  let code_regex = regexp::MustCompile("`([^`]+)`")
+  code_regex.ReplaceAllStringFunc(
+    text,
+    fn(found: Str) Str {
+      let inner = strings::TrimSuffix(strings::TrimPrefix(found, "`"), "`")
+      "<code>{html_escape(inner)}</code>"
+    },
+  )
+}
+
+fn render_inline(text: Str) Str {
+  let image_regex = regexp::MustCompile("!\\[([^\\]]*)\\]\\(([^)]+)\\)")
+  let link_regex = regexp::MustCompile("\\[([^\\]]+)\\]\\(([^)]+)\\)")
+  let bold_regex = regexp::MustCompile("\\*\\*(.+?)\\*\\*|__(.+?)__")
+  let italic_regex = regexp::MustCompile("\\*(.+?)\\*|_(.+?)_")
+
+  mut rendered = image_regex.ReplaceAllString(text, "<img alt=\"$1\" src=\"$2\">")
+  rendered = link_regex.ReplaceAllString(rendered, "<a href=\"$2\">$1</a>")
+  rendered = render_inline_code(rendered)
+  rendered = bold_regex.ReplaceAllString(rendered, "<strong>$1$2</strong>")
+  rendered = italic_regex.ReplaceAllString(rendered, "<em>$1$2</em>")
+  rendered
+}
+
+fn markdown_to_html(markdown: Str) Str {
+  let heading_regex = regexp::MustCompile("^(######|#####|####|###|##|#)\\s+(.+)$")
+  let blockquote_regex = regexp::MustCompile("^>\\s?(.*)$")
+  let list_item_regex = regexp::MustCompile("^[-*]\\s+(.+)$")
+  let thematic_break_regex = regexp::MustCompile("^[-*_][-*_][-*_]+\\s*$")
+  let lines = strings::Split(markdown, "\n")
+
+  mut out = ""
+  mut in_code_block = false
+  mut code_lang = ""
+  mut code = ""
+  mut in_list = false
+
+  for line in lines {
+    if line.starts_with("```") {
+      if in_code_block {
+        let lang_attr = match code_lang.is_empty() {
+          true => "",
+          false => " class=\"language-{code_lang}\"",
+        }
+        out =+ "<pre><code{lang_attr}>{html_escape(code)}</code></pre>\n"
+        code = ""
+        code_lang = ""
+        in_code_block = false
+      } else {
+        code_lang = strings::TrimSpace(strings::TrimPrefix(line, "```"))
+        in_code_block = true
+      }
+    } else {
+      if in_code_block {
+        code =+ "{line}\n"
+      } else {
+        let trimmed = strings::TrimSpace(line)
+        mut handled = false
+
+        if trimmed.is_empty() {
+          if in_list {
+            out =+ "</ul>\n"
+            in_list = false
+          }
+          out =+ "\n"
+          handled = true
+        }
+
+        if (not handled) and thematic_break_regex.MatchString(trimmed) {
+          if in_list {
+            in_list = false
+          }
+          out =+ "<hr>\n"
+          handled = true
+        }
+
+        let heading = heading_regex.FindStringSubmatch(trimmed)
+        if (not handled) and heading.size() >= 3 {
+          if in_list {
+            out =+ "</ul>\n"
+            in_list = false
+          }
+          let level = heading.at(1).or("").size()
+          let text = render_inline(heading.at(2).or(""))
+          out =+ "<h{level}>{text}</h{level}>\n"
+          handled = true
+        }
+
+        let blockquote = blockquote_regex.FindStringSubmatch(trimmed)
+        if (not handled) and blockquote.size() >= 2 {
+          if in_list {
+            out =+ "</ul>\n"
+            in_list = false
+          }
+          let text = render_inline(blockquote.at(1).or(""))
+          out =+ "<blockquote><p>{text}</p></blockquote>\n"
+          handled = true
+        }
+
+        let list_item = list_item_regex.FindStringSubmatch(trimmed)
+        if (not handled) and list_item.size() >= 2 {
+          if not in_list {
+            out =+ "<ul>\n"
+            in_list = true
+          }
+          let text = render_inline(list_item.at(1).or(""))
+          out =+ "<li>{text}</li>\n"
+          handled = true
+        }
+
+        if not handled {
+          if in_list {
+            out =+ "</ul>\n"
+            in_list = false
+          }
+          out =+ "<p>{render_inline(trimmed)}</p>\n"
+        }
+      }
+    }
+  }
+
+  if in_code_block {
+    let lang_attr = match code_lang.is_empty() {
+      true => "",
+      false => " class=\"language-{code_lang}\"",
+    }
+    out =+ "<pre><code{lang_attr}>{html_escape(code)}</code></pre>\n"
+  }
+  if in_list {
+    out =+ "</ul>\n"
+  }
+
+  strings::TrimSpace(out)
+}
+
+fn strip_markdown(markdown: Str) Str {
+  let code_blocks = regexp::MustCompile("```[\\s\\S]*?```")
+  let inline_code = regexp::MustCompile("`([^`]+)`")
+  let images = regexp::MustCompile("!\\[[^\\]]*\\]\\([^\\)]*\\)")
+  let links = regexp::MustCompile("\\[([^\\]]+)\\]\\([^\\)]*\\)")
+  let headings = regexp::MustCompile("^#+\\s+")
+  let emphasis = regexp::MustCompile("[*_~]")
+  let whitespace = regexp::MustCompile("\\s+")
+
+  mut plain = code_blocks.ReplaceAllString(markdown, "")
+  plain = inline_code.ReplaceAllString(plain, "$1")
+  plain = images.ReplaceAllString(plain, "")
+  plain = links.ReplaceAllString(plain, "$1")
+  plain = headings.ReplaceAllString(plain, "")
+  plain = emphasis.ReplaceAllString(plain, "")
+  plain = whitespace.ReplaceAllString(plain, " ")
+  strings::TrimSpace(plain)
+}
+
+fn truncate_excerpt(text: Str) Str {
+  mut excerpt: [Byte] = []
+  for byte, index in text.bytes() {
+    if index < 217 {
+      excerpt.push(byte)
+    }
+  }
+  "{Str::from(excerpt)}..."
+}
+
+fn extract_excerpt(body_md: Str) Str {
+  let blocks = strings::Split(body_md, "\n\n")
+  mut excerpt = ""
+
+  for block in blocks {
+    let trimmed = strings::TrimSpace(block)
+    if excerpt.is_empty() and (not trimmed.is_empty()) and (not trimmed.starts_with("#")) {
+      let plain = strip_markdown(trimmed)
+      if not plain.is_empty() {
+        excerpt = match plain.size() <= 220 {
+          true => plain,
+          false => truncate_excerpt(plain),
+        }
+      }
+    }
+  }
+
+  excerpt
+}
+
 // ============================================================
 // Build functions
 // ============================================================
 
 fn build_post_page(post: Post) Void!Str {
-  let layout_tpl = try ffi::ReadFile("templates/layout.html")
+  let layout_tpl = try read_text("templates/layout.html")
   let canonical = "https://akonwi.io{post.url}"
 
   let article = "<article class=\"post post-page\">\n<header class=\"post-header\">\n<h1>{post.title}</h1>\n<p class=\"meta\">{format_date(post.date)}</p>\n</header>\n<div class=\"post-content\">{post.html}</div>\n</article>"
 
   let page = apply_layout(layout_tpl, "{post.title} | akonwi", article, canonical, "My ramblings...")
-  try ffi::CreateDir("dist/blog/{post.slug}")
-  try ffi::WriteFile("dist/blog/{post.slug}/index.html", page)
+  try os::MkdirAll("dist/blog/{post.slug}", 493)
+  try write_text("dist/blog/{post.slug}/index.html", page)
   Result::ok(())
 }
 
 fn build_index(posts: [Post]) Void!Str {
-  let layout_tpl = try ffi::ReadFile("templates/layout.html")
-  let card_tpl = try ffi::ReadFile("templates/post-card.html")
+  let layout_tpl = try read_text("templates/layout.html")
+  let card_tpl = try read_text("templates/post-card.html")
 
   mut list_html = ""
   for post in posts {
@@ -215,22 +538,22 @@ fn build_index(posts: [Post]) Void!Str {
   let canonical = "https://akonwi.io/"
 
   let page = apply_layout(layout_tpl, "akonwi", content, canonical, "My ramblings...")
-  try ffi::WriteFile("dist/index.html", page)
+  try write_text("dist/index.html", page)
   Result::ok(())
 }
 
 fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_path: Str) Void!Str {
-  let content_raw = try ffi::ReadFile(source_path)
-  let html = try ffi::MarkdownToHTML(content_raw)
+  let content_raw = try read_text(source_path)
+  let html = markdown_to_html(content_raw)
 
-  let layout_tpl = try ffi::ReadFile("templates/layout.html")
+  let layout_tpl = try read_text("templates/layout.html")
 
   let content = "<section class=\"post page-content\">\n<header class=\"post-header\">\n<h2>{page_title}</h2>\n</header>\n<div class=\"post-content\">{html}</div>\n</section>"
   let canonical = "https://akonwi.io{canonical_path}"
 
   let page = apply_layout(layout_tpl, page_title, content, canonical, "My ramblings...")
-  try ffi::CreateDir(output_path.replace_all("/index.html", ""))
-  try ffi::WriteFile(output_path, page)
+  try os::MkdirAll(output_path.replace_all("/index.html", ""), 493)
+  try write_text(output_path, page)
   Result::ok(())
 }
 
@@ -250,35 +573,36 @@ fn build_feed(posts: [Post]) Void!Str {
 
   let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{xml_escape("akonwi")}</title>\n<description>{xml_escape("My ramblings...")}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
 
-  try ffi::WriteFile("dist/feed.xml", feed)
+  try write_text("dist/feed.xml", feed)
   Result::ok(())
 }
 fn buildposts() [Post]!Str {
-  let entries = try ffi::ListFiles("posts")
+  let entries = try os::ReadDir("posts")
   mut posts: [Post] = []
 
-  for name in entries {
-    if name.ends_with(".md") or name.ends_with(".markdown") {
+  for entry in entries {
+    let name = entry.Name()
+    if (not entry.IsDir()) and (name.ends_with(".md") or name.ends_with(".markdown")) {
       let file_path = "posts/{name}"
-      let meta = try ffi::ParseFrontmatter(try ffi::ReadFile(file_path))
+      let meta = try parse_frontmatter(try read_text(file_path))
 
-      if meta.Published {
+      if meta.published {
         let slug = try extract_slug(name)
         let date_str = try extract_date(name)
 
-        let post_date = match meta.DateISO.is_empty() {
+        let post_date = match meta.date_iso.is_empty() {
           true => date_str,
-          false => meta.DateISO,
+          false => meta.date_iso,
         }
 
-        let html = try ffi::MarkdownToHTML(meta.BodyMD)
+        let html = markdown_to_html(meta.body_md)
 
         let post = Post{
           slug: slug,
-          title: meta.Title,
+          title: meta.title,
           date: post_date,
           html: html,
-          excerpt: meta.Excerpt,
+          excerpt: meta.excerpt,
           url: "/blog/{slug}",
         }
 
@@ -294,8 +618,8 @@ fn buildposts() [Post]!Str {
 fn build_site() Void!Str {
   try fmt::Println("Building site...")
 
-  try ffi::CreateDir("dist")
-  try ffi::CreateDir("dist/blog")
+  try os::MkdirAll("dist", 493)
+  try os::MkdirAll("dist/blog", 493)
 
   let posts = try buildposts()
 
@@ -306,10 +630,10 @@ fn build_site() Void!Str {
 
   try build_feed(posts)
 
-  try ffi::CreateDir("dist/css")
-  try ffi::CopyFile("css/style.css", "dist/css/style.css")
-  try ffi::CopyFile("css/syntax.css", "dist/css/syntax.css")
-  try ffi::WriteFile("dist/CNAME", "akonwi.io")
+  try os::MkdirAll("dist/css", 493)
+  try copy_file("css/style.css", "dist/css/style.css")
+  try copy_file("css/syntax.css", "dist/css/syntax.css")
+  try write_text("dist/CNAME", "akonwi.io")
 
   try fmt::Println("Done! Site built to dist")
   Result::ok(())
@@ -443,5 +767,76 @@ test fn test_month_name() Void!Str {
   try testing::assert(month_name("01") == "Jan", "01 -> Jan")
   try testing::assert(month_name("12") == "Dec", "12 -> Dec")
   try testing::assert(month_name("99") == "99", "99 -> 99 (fallback)")
+  testing::pass()
+}
+
+test fn test_parse_frontmatter() Void!Str {
+  let content = "---\ntitle: \"Test Post\"\ndate: 2024-01-15\npublished: false\n---\nFirst **paragraph**."
+  let meta = try parse_frontmatter(content)
+
+  try testing::assert(meta.title == "Test Post", "Should parse the title")
+  try testing::assert(meta.date_iso == "2024-01-15T00:00:00Z", "Should normalize the date")
+  try testing::assert(meta.body_md == "First **paragraph**.", "Should preserve the Markdown body")
+  try testing::assert(meta.excerpt == "First paragraph.", "Should derive a plain-text excerpt")
+  try testing::assert(not meta.published, "Should parse published: false")
+  testing::pass()
+}
+
+test fn test_parse_content_without_frontmatter() Void!Str {
+  let content = "# Heading\n\nFirst *paragraph*."
+  let meta = try parse_frontmatter(content)
+
+  try testing::assert(meta.title.is_empty(), "Title should default to empty")
+  try testing::assert(meta.body_md == content, "The full content should remain the body")
+  try testing::assert(meta.excerpt == "First paragraph.", "Should derive an excerpt")
+  try testing::assert(meta.published, "Content should be published by default")
+  testing::pass()
+}
+
+test fn test_parse_frontmatter_rejects_unclosed_block() Void!Str {
+  match parse_frontmatter("---\ntitle: Broken") {
+    ok(_) => try testing::assert(false, "Expected unclosed frontmatter to fail"),
+    err(message) => try testing::assert(message.contains("unclosed"), "Expected an unclosed error"),
+  }
+  testing::pass()
+}
+
+test fn test_markdown_to_html() Void!Str {
+  let markdown = "# Heading\n\nA **bold** [link](https://example.com).\n\n- one\n- two"
+  let html = markdown_to_html(markdown)
+
+  try testing::assert(html.contains("<h1>Heading</h1>"), "Should render headings")
+  try testing::assert(html.contains("<strong>bold</strong>"), "Should render bold text")
+  try testing::assert(html.contains("<a href=\"https://example.com\">link</a>"), "Should render links")
+  try testing::assert(html.contains("<ul>\n<li>one</li>\n<li>two</li>\n</ul>"), "Should render lists")
+  testing::pass()
+}
+
+test fn test_frontmatter_preserves_delimiters_in_body() Void!Str {
+  let meta = try parse_frontmatter("---\ntitle: Test\n---\n---\nBody")
+  try testing::assert(
+    meta.body_md == "---\nBody",
+    "Only the first closing delimiter should split the body",
+  )
+  testing::pass()
+}
+
+test fn test_frontmatter_supports_list_values() Void!Str {
+  let meta = try parse_frontmatter("---\npublished:\n- false\n---\nBody")
+  try testing::assert(not meta.published, "List-valued false should remain unpublished")
+  testing::pass()
+}
+
+test fn test_frontmatter_requires_matching_quotes() Void!Str {
+  let meta = try parse_frontmatter("---\npublished: 'true\n---\nBody")
+  try testing::assert(not meta.published, "An unmatched quote should remain part of the value")
+  testing::pass()
+}
+
+test fn test_excerpt_truncates_by_bytes() Void!Str {
+  let prefix = strings::Repeat("é", 108)
+  let text = "{prefix}a{strings::Repeat("b", 10)}"
+  let expected = "{prefix}a..."
+  try testing::assert(truncate_excerpt(text) == expected, "Should keep the first 217 UTF-8 bytes")
   testing::pass()
 }
