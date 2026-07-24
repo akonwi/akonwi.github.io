@@ -1,4 +1,4 @@
-- [mica](https://github.com/akonwi/mica)
+- [mica](https://akonwi.io/mica/)
 
   A front-end library built from custom element tags, native HTML elements, and CSS. Custom elements, native behavior, nearly no JavaScript — the browser provides the behavior, not a runtime. This site is built with it.
 
