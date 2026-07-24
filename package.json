@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "build": "ard run site.ard",
+    "update-mica": "cp ../mica/mica.css css/mica.css",
     "test": "ard test site.ard",
     "clean": "rm -rf dist site-gen ard-out"
   }

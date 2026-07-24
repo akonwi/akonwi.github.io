@@ -154,11 +154,16 @@ fn rss_date(date_str: Str) Str {
 // Template rendering
 // ============================================================
 
-fn apply_layout(tpl: Str, page_title: Str, content: Str, canonical: Str, description: Str) Str {
+fn apply_layout(tpl: Str, page_title: Str, content: Str, canonical: Str, description: Str, nav_id: Str) Str {
   mut page = tpl.replace_all("@@title@@", page_title)
   page = page.replace_all("@@content@@", content)
   page = page.replace_all("@@canonical_url@@", canonical)
   page = page.replace_all("@@description@@", description)
+  // mark the active nav link, then blank the remaining markers
+  page = page.replace_all("@@current_{nav_id}@@", "aria-current=\"page\"")
+  page = page.replace_all("@@current_blog@@", "")
+  page = page.replace_all("@@current_about@@", "")
+  page = page.replace_all("@@current_projects@@", "")
   page
 }
 
@@ -519,7 +524,7 @@ fn build_post_page(post: Post) Void!Str {
 
   let article = "<article class=\"post post-page\">\n<header class=\"post-header\">\n<h1>{post.title}</h1>\n<p class=\"meta\">{format_date(post.date)}</p>\n</header>\n<div class=\"post-content\">{post.html}</div>\n</article>"
 
-  let page = apply_layout(layout_tpl, "{post.title} | akonwi", article, canonical, "My ramblings...")
+  let page = apply_layout(layout_tpl, "{post.title} | akonwi", article, canonical, "My ramblings...", "blog")
   try os::MkdirAll("dist/blog/{post.slug}", 493)
   try write_text("dist/blog/{post.slug}/index.html", page)
   Result::ok(())
@@ -537,21 +542,21 @@ fn build_index(posts: [Post]) Void!Str {
   let content = "<section class=\"home\">\n<ul class=\"posts\">{list_html}</ul>\n</section>"
   let canonical = "https://akonwi.io/"
 
-  let page = apply_layout(layout_tpl, "akonwi", content, canonical, "My ramblings...")
+  let page = apply_layout(layout_tpl, "akonwi", content, canonical, "My ramblings...", "blog")
   try write_text("dist/index.html", page)
   Result::ok(())
 }
 
-fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_path: Str) Void!Str {
+fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_path: Str, nav_id: Str) Void!Str {
   let content_raw = try read_text(source_path)
   let html = markdown_to_html(content_raw)
 
   let layout_tpl = try read_text("templates/layout.html")
 
-  let content = "<section class=\"post page-content\">\n<header class=\"post-header\">\n<h2>{page_title}</h2>\n</header>\n<div class=\"post-content\">{html}</div>\n</section>"
+  let content = "<section class=\"post page-content\">\n<div class=\"post-content\">{html}</div>\n</section>"
   let canonical = "https://akonwi.io{canonical_path}"
 
-  let page = apply_layout(layout_tpl, page_title, content, canonical, "My ramblings...")
+  let page = apply_layout(layout_tpl, page_title, content, canonical, "My ramblings...", nav_id)
   try os::MkdirAll(output_path.replace_all("/index.html", ""), 493)
   try write_text(output_path, page)
   Result::ok(())
@@ -625,12 +630,13 @@ fn build_site() Void!Str {
 
   try build_index(posts)
 
-  try build_page("pages/about.md", "dist/about/index.html", "About | akonwi", "/about/")
-  try build_page("pages/projects.md", "dist/projects/index.html", "Projects | akonwi", "/projects/")
+  try build_page("pages/about.md", "dist/about/index.html", "About | akonwi", "/about/", "about")
+  try build_page("pages/projects.md", "dist/projects/index.html", "Projects | akonwi", "/projects/", "projects")
 
   try build_feed(posts)
 
   try os::MkdirAll("dist/css", 493)
+  try copy_file("css/mica.css", "dist/css/mica.css")
   try copy_file("css/style.css", "dist/css/style.css")
   try copy_file("css/syntax.css", "dist/css/syntax.css")
   try write_text("dist/CNAME", "akonwi.io")
@@ -718,7 +724,7 @@ test fn test_format_date_february() Void!Str {
 
 test fn test_apply_layout_replaces_all_placeholders() Void!Str {
   let tpl = "<html><title>@@title@@</title><link href=\"@@canonical_url@@\" /><meta name=\"desc\" content=\"@@description@@\" /><body>@@content@@</body></html>"
-  let result = apply_layout(tpl, "My Page", "<p>Hello</p>", "https://example.com/", "A description")
+  let result = apply_layout(tpl, "My Page", "<p>Hello</p>", "https://example.com/", "A description", "blog")
 
   try testing::assert(result.contains("My Page"), "Should contain title")
   try testing::assert(result.contains("<p>Hello</p>"), "Should contain content")
