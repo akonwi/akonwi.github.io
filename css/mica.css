@@ -44,11 +44,17 @@
     --focus-ring-offset: 2px;
     --focus-ring-color: var(--color-accent);
 
-    /* checkmark glyph — SVG URIs can't read custom properties, so this
-       ships as a light-dark pair tracking on-primary (white / near-black) */
-    --check-glyph: light-dark(
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E"),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23151922' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E"));
+    /* checkmark glyph — SVG URIs can't read custom properties, and
+       light-dark() only accepts <color>s: feeding it url()s is invalid
+       (Chromium computes it to none; iOS Safari drops the glyph at
+       paint). So: light glyph by default, dark swapped in by the media
+       query after this block. The pair tracks on-primary (white /
+       near-black, since primary inverts in dark).
+       Forcing a scheme against the OS? Also pin the glyph:
+         :root { color-scheme: dark; --check-glyph: var(--check-glyph-dark); } */
+    --check-glyph-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    --check-glyph-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23151922' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    --check-glyph: var(--check-glyph-light);
 
     /* -------------------------------------------------------------- *
      * Color. Two knobs — change the theme by changing the knobs:
@@ -151,6 +157,14 @@
     --color-on-warn:      oklch(20% 0.03 var(--warn-hue));
     --color-warn-text:    light-dark(oklch(42% calc(var(--status-chroma) * 0.9) var(--warn-hue)), oklch(80% calc(var(--status-chroma) * 0.9) var(--warn-hue)));
   }
+
+  /* scheme swap for image-valued tokens — the one place light-dark()
+     can't help (colors only). See --check-glyph above. */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --check-glyph: var(--check-glyph-dark);
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -240,6 +254,14 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
+    }
+    /* `*` never matches pseudo-elements — ::backdrop needs its own rule
+       (and per convention gets its own block: an unrecognized selector
+       in the list above would kill the whole kill-switch). Found via
+       snapshot flakiness: the backdrop fade survived reduced-motion. */
+    *::backdrop {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
     }
   }
 }
@@ -808,25 +830,49 @@
   /* composition: dialog > header (title + description) / body / footer.
      layout lives on [open] — unconditional display would defeat the
      UA's display:none on closed dialogs */
-  :where(dialog[open]) {
-    display: flex;
+  /* Composition is UNCONDITIONAL so it survives the exit: the dialog
+     stays rendered (display transitions via allow-discrete) for 0.15s
+     after [open] is removed. Structure gated on [open] snaps back to
+     defaults the instant [open] goes — flex-direction reverts to row,
+     children lose their sizing — and the content visibly deforms while
+     fading out. Only `display` stays conditional (unconditional flex
+     would defeat the UA's display:none on a closed dialog); opacity and
+     scale are the open visual state that transitions on exit. */
+  :where(dialog) {
     flex-direction: column;
-    opacity: 1;
-    scale: 1;
 
     & > :where(*) {
       margin-block: 0; /* the dialog owns spacing, like a stack */
     }
 
     /* the body: whatever sits between header and footer. one wrapper
-       element; it pads itself and is the scrollable region */
+       element; it pads itself and is the scrollable region.
+       flex-basis must stay `auto` (not `flex: 1`'s 0%): iOS Safari sizes
+       the dialog's fit-content height from the basis, so 0% collapses
+       the body to a one-line scroll strip (iOS 26.0; Chromium and newer
+       WebKit use the content contribution either way). */
     & > :where(:not(header, footer, button.close)) {
       padding: var(--space-md);
-      flex: 1;
+      flex: 1 1 auto;
       min-block-size: 0;
       overflow-y: auto;
+      /* break the scroll chain: at the region's scroll limit iOS
+         otherwise hands the gesture to the page behind the modal —
+         the root's overflow:hidden can't stop a chained scroll. */
+      overscroll-behavior: contain;
       font-size: 0.875rem; /* body must not outweigh the 14px title */
     }
+
+    /* when the dialog hits its max height, only the body compresses */
+    & > :where(header, footer) {
+      flex-shrink: 0;
+    }
+  }
+
+  :where(dialog[open]) {
+    display: flex;
+    opacity: 1;
+    scale: 1;
   }
 
   /* corner close button — <button class="close" commandfor="…"
@@ -906,7 +952,18 @@
   }
 
   :where(dialog)::backdrop {
-    background: transparent;
+    /* explicit oklch alpha, not the `transparent` keyword: iOS won't
+       interpolate oklch()→transparent and cuts the scrim instantly,
+       desyncing it from the sheet. same-space endpoints animate. */
+    background: oklch(0 0 0 / 0);
+    /* size to the LARGE viewport, don't trust inset: shipped iOS sizes
+       the top layer to the small viewport, so an inset-based backdrop
+       ends above the real bottom edge when the toolbar collapses —
+       page content peeked through the strip. (Radix/vaul overlays are
+       ordinary fixed divs and don't have this problem; ::backdrop
+       lives in the top layer, so we overpaint instead.) */
+    inline-size: 100lvw;
+    block-size: 100lvh;
     transition:
       background-color 0.15s,
       overlay 0.15s allow-discrete,
@@ -917,7 +974,7 @@
   }
   @starting-style {
     :where(dialog[open])::backdrop {
-      background: transparent;
+      background: oklch(0 0 0 / 0);
     }
   }
 
@@ -927,8 +984,14 @@
   :where(dialog.drawer) {
     margin-inline: auto 0;
     margin-block: 0;
-    block-size: 100svh;
-    max-block-size: 100svh;
+    /* full height WITHOUT an explicit block-size: the UA gives
+       dialog:modal `position: fixed; inset-block: 0` — leaving height
+       auto stretches between both edges, and on iOS that bottom edge
+       tracks toolbar collapse like any bottom-fixed bar. Explicit
+       100svh left a gap behind the collapsed toolbar; 100dvh lagged
+       in the top layer on shipped iOS. Don't reintroduce either. */
+    block-size: auto;
+    max-block-size: none;
     inline-size: 75vw;
     max-inline-size: 24rem; /* sheet's max-w-sm */
     border: 0;
@@ -940,10 +1003,10 @@
   }
   :where(dialog.drawer[open]) {
     translate: 0 0;
-
-    & > :where(:not(header, footer, button.close)) {
-      font-size: inherit; /* panel runs 12/relaxed throughout */
-    }
+  }
+  /* unconditional (survives the exit, like the rest of composition) */
+  :where(dialog.drawer) > :where(:not(header, footer, button.close)) {
+    font-size: inherit; /* panel runs 12/relaxed throughout */
   }
   @starting-style {
     :where(dialog.drawer[open]) {
@@ -960,6 +1023,90 @@
     align-items: stretch;
     gap: var(--space-xs);
     border-block-start: 0;
+  }
+
+  /* small screens: the drawer becomes a bottom sheet — shadcn's own
+     mobile drawer (vaul/radix) is exactly this. Anchored to the bottom
+     edge via auto top margin: bottom attachment is the one thing iOS
+     tracks reliably through toolbar collapse (same mechanism as bottom
+     nav bars). Explicit 100svh gapped behind the collapsed toolbar and
+     100dvh lagged in the top layer — don't reintroduce heights here. */
+  @media (max-width: 40rem) {
+    :where(dialog.drawer) {
+      inset-block: auto 0;       /* release the UA's top anchor… */
+      margin-block: 0;           /* …so height resolves from content */
+      block-size: auto;          /* content height, like vaul */
+      max-block-size: calc(100dvh - 3rem);
+      inline-size: 100vw;
+      max-inline-size: none;
+      border-inline-start: 0;
+      border-block-start: 1px solid var(--color-border);
+      /* Two box-shadows, both painted by the SHEET element so they
+         persist through the exit (display:allow-discrete keeps the box
+         rendered) — unlike ::backdrop, which iOS drops from the top
+         layer the instant you close, cutting the scrim. So the dim
+         rides the sheet here and stays in sync with the slide:
+           1) bleed slab below the edge (vaul's trick) — fills any strip
+              iOS exposes under the top layer when the toolbar collapses;
+           2) full-screen scrim via 100vmax spread — the visible dim,
+              its alpha animating with the sheet. 100vmax keeps coverage
+              even as the shadow rides the sliding sheet down. */
+      box-shadow:
+        0 4rem 0 0 var(--color-surface-overlay),
+        0 0 0 100vmax oklch(0 0 0 / 0);
+      transition:
+        box-shadow 0.15s, translate 0.15s,
+        overlay 0.15s allow-discrete, display 0.15s allow-discrete;
+      /* the sheet SLIDES fully off the bottom and stays opaque — only
+         the scrim fades. A small nudge + opacity fade read as a
+         dissolve-in-place, wrong for a bottom sheet. */
+      translate: 0 100%;
+      opacity: 1;
+    }
+    :where(dialog.drawer[open]) {
+      translate: 0 0;
+      box-shadow:
+        0 4rem 0 0 var(--color-surface-overlay),
+        0 0 0 100vmax oklch(0 0 0 / 0.4);
+    }
+    @starting-style {
+      :where(dialog.drawer[open]) {
+        translate: 0 100%;
+        box-shadow:
+          0 4rem 0 0 var(--color-surface-overlay),
+          0 0 0 100vmax oklch(0 0 0 / 0);
+      }
+    }
+    /* the box-shadow scrim replaces ::backdrop here; keep the native
+       backdrop clear so they don't double up or flash on the iOS cut. */
+    :where(dialog.drawer[open])::backdrop {
+      background: oklch(0 0 0 / 0);
+    }
+
+    /* grab handle — only when drawer.js is loaded (an affordance
+       without its behavior would fake interactivity; TIERS.md).
+       the handle is the first flex item of the open sheet. */
+    :where(:root[data-drawer-gestures]) :where(dialog.drawer[open])::before {
+      content: "";
+      align-self: center;
+      flex-shrink: 0;
+      inline-size: 2.5rem;
+      block-size: 0.25rem;
+      margin-block-start: var(--space-sm);
+      background: var(--color-border-strong);
+      border-radius: var(--radius-full);
+    }
+    :where(:root[data-drawer-gestures]) :where(dialog.drawer) > :where(header) {
+      touch-action: none; /* the drag surface must own its touches */
+    }
+  }
+
+  /* scroll lock: the page must not scroll behind any modal dialog.
+     CSS-only best effort (→ no JS tier violation); iOS honors
+     overflow:hidden on the root for modern versions. */
+  :where(html):has(:where(dialog:modal)) {
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
   /* --- accordion / disclosure: details + summary -------------------- *
@@ -1042,18 +1189,27 @@
     opacity: 1;
     scale: 1;
   }
-  /* enter animates; close is instant (house rule for transient layers) */
-  :where([popover]:popover-open) {
-    transition:
-      opacity 0.1s,
-      scale 0.1s,
-      overlay 0.1s allow-discrete,
-      display 0.1s allow-discrete;
-  }
-  @starting-style {
+  /* enter animates; close is instant (house rule for transient layers).
+     Gated on `overlay` support: iOS lacks it, and its top-layer
+     transitions are broken — a popover with an @starting-style entry
+     freezes at the start (opacity:0 = invisible) with no reflow to kick
+     it, and there's no CSS way to force one. Where overlay is
+     unsupported, skip the entrance so popovers render at their resting
+     opacity:1 instead of vanishing. (This is why toasts "didn't work"
+     on iOS.) */
+  @supports (overlay: auto) {
     :where([popover]:popover-open) {
-      opacity: 0;
-      scale: 0.95;
+      transition:
+        opacity 0.1s,
+        scale 0.1s,
+        overlay 0.1s allow-discrete,
+        display 0.1s allow-discrete;
+    }
+    @starting-style {
+      :where([popover]:popover-open) {
+        opacity: 0;
+        scale: 0.95;
+      }
     }
   }
   /* anchor to the invoker where the platform can */
@@ -1246,18 +1402,24 @@
       border-inline-start: 2px solid var(--color-warn);
     }
   }
-  /* arrives from below rather than zooming; reflow (restacking) eases */
+  /* restacking motion always (inset-block-end); the entrance slide/fade
+     only where overlay transitions work — see the base popover note. */
   :where([popover].toast:popover-open) {
-    transition:
-      opacity 0.1s,
-      translate 0.1s,
-      inset-block-end 0.15s,
-      overlay 0.1s allow-discrete,
-      display 0.1s allow-discrete;
+    transition: inset-block-end 0.15s;
   }
-  @starting-style {
+  @supports (overlay: auto) {
     :where([popover].toast:popover-open) {
-      translate: 0 0.75rem;
+      transition:
+        opacity 0.1s,
+        translate 0.1s,
+        inset-block-end 0.15s,
+        overlay 0.1s allow-discrete,
+        display 0.1s allow-discrete;
+    }
+    @starting-style {
+      :where([popover].toast:popover-open) {
+        translate: 0 0.75rem;
+      }
     }
   }
 
@@ -1348,13 +1510,15 @@
   m-grid,
   m-sidecar,
   m-switcher,
-  m-reel {
+  m-reel,
+  m-frame,
+  m-cover {
     display: block;
     box-sizing: border-box;
   }
 
   /* Shared attribute vocabulary -> custom properties */
-  :is(m-vstack, m-hstack, m-grid, m-sidecar, m-switcher, m-reel) {
+  :is(m-vstack, m-hstack, m-grid, m-sidecar, m-switcher, m-reel, m-cover) {
     &[gap="none"] { --gap: 0; }
     &[gap="2xs"]  { --gap: var(--space-2xs); }
     &[gap="xs"]   { --gap: var(--space-xs); }
@@ -1532,5 +1696,54 @@
 
     &[snap="none"]      { scroll-snap-type: none; }
     &[snap="mandatory"] { scroll-snap-type: inline mandatory; }
+  }
+
+  /* --- m-frame: hold an aspect ratio, crop media to fit ------------ */
+  m-frame {
+    aspect-ratio: var(--ratio, 16 / 9);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &[ratio="square"] { --ratio: 1; }
+    &[ratio="16:9"]   { --ratio: 16 / 9; }
+    &[ratio="4:3"]    { --ratio: 4 / 3; }
+    &[ratio="3:2"]    { --ratio: 3 / 2; }
+    &[ratio="2:1"]    { --ratio: 2 / 1; }
+    &[ratio="9:16"]   { --ratio: 9 / 16; }
+
+    /* media fills and crops; anything else just gets centered */
+    & > :is(img, video),
+    & > picture > img {
+      inline-size: 100%;
+      block-size: 100%;
+      object-fit: cover;
+    }
+  }
+
+  /* --- m-cover: fill the viewport, center the principal element ---- *
+   * The principal element (h1 by default, or mark one child with
+   * .principal) is vertically centered; children before it pin to the
+   * top, children after it pin to the bottom.                         */
+  m-cover {
+    display: flex;
+    flex-direction: column;
+    min-block-size: var(--min-height, 100svh);
+    gap: var(--gap, var(--space-md));
+    padding: var(--pad, var(--space-md));
+
+    &[pad="none"] { --pad: 0; }
+    &[pad="sm"]   { --pad: var(--space-sm); }
+    &[pad="md"]   { --pad: var(--space-md); }
+    &[pad="lg"]   { --pad: var(--space-lg); }
+    &[pad="xl"]   { --pad: var(--space-xl); }
+
+    & > * { margin-block: 0; }
+
+    & > :is(h1, .principal) { margin-block: auto; }
+
+    /* an explicit .principal wins over the h1 default */
+    &:has(> .principal) > h1:not(.principal) { margin-block: 0; }
   }
 }
