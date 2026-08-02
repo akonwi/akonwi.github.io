@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "build": "ard run site.ard",
-    "update-mica": "curl -sf https://raw.githubusercontent.com/akonwi/mica/v0.1.1/mica.css -o css/mica.css",
+    "update-mica": "curl -sf https://raw.githubusercontent.com/akonwi/mica/v0.3.0/mica.css -o css/mica.css",
     "test": "ard test site.ard",
     "clean": "rm -rf dist site-gen ard-out"
   }
