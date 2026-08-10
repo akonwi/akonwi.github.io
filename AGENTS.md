@@ -6,7 +6,7 @@ Repository guidance for coding agents working in this project.
 - Purpose: Personal blog/site with posts, pages, and RSS.
 - Content source: markdown in `posts/` and `pages/`.
 - Build output: `dist/` directory.
-- SSG source: `site.ard` (Ard with direct Go standard-library imports).
+- SSG source: `site.ard` (Ard with direct Go standard-library imports). Requires Ard >= 0.35.
 
 ## URL Requirements
 - Blog posts: `/blog/:title` (slug derived from filename).
@@ -66,7 +66,7 @@ ard test site.ard --filter test_format_date     # run tests matching "test_forma
 - Avoid unrelated refactors in feature/bugfix changes.
 
 ### Ard Source (`site.ard`)
-- Import Ard and Go standard-library modules at top with `use`; Ard v0.28 supports direct Go imports such as `use go:os`.
+- Import Ard and Go standard-library modules at top with `use`; Ard supports direct Go imports such as `use go:os`.
 - Keep frontmatter parsing, Markdown rendering, and site generation in Ard.
 - Define `struct` types before functions that use them.
 - Functions must be defined before they are called (no hoisting).

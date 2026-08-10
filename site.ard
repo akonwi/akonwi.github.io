@@ -154,7 +154,14 @@ fn rss_date(date_str: Str) Str {
 // Template rendering
 // ============================================================
 
-fn apply_layout(tpl: Str, page_title: Str, content: Str, canonical: Str, description: Str, nav_id: Str) Str {
+fn apply_layout(
+  tpl: Str,
+  page_title: Str,
+  content: Str,
+  canonical: Str,
+  description: Str,
+  nav_id: Str,
+) Str {
   mut page = tpl.replace_all("@@title@@", page_title)
   page = page.replace_all("@@content@@", content)
   page = page.replace_all("@@canonical_url@@", canonical)
@@ -203,14 +210,14 @@ fn read_text(path: Str) Str!Str {
 }
 
 fn write_text(path: Str, content: Str) Void!Str {
-  mut bytes = content.bytes()
-  try os::WriteFile(path, bytes, 420)
+  let bytes = content.bytes()
+  try os::WriteFile(path, mut bytes, 420)
   Result::ok(())
 }
 
 fn copy_file(source: Str, destination: Str) Void!Str {
-  mut bytes = try os::ReadFile(source)
-  try os::WriteFile(destination, bytes, 420)
+  let bytes = try os::ReadFile(source)
+  try os::WriteFile(destination, mut bytes, 420)
   Result::ok(())
 }
 
@@ -268,11 +275,11 @@ fn parse_frontmatter(content: Str) Frontmatter!Str {
       let yaml = strings::TrimSpace(sections.at(0).or(""))
       let body_md = strings::TrimSpace(sections.at(1).or(""))
 
-      mut values: [Str: Str] = [:]
+      let values: mut [Str: Str] = mut [:]
       let field_regex = regexp::MustCompile("^([^:]+):(.*)$")
       let lines = strings::Split(yaml, "\n")
       mut current_key = ""
-      mut current_list: [Str] = []
+      mut current_list: mut [Str] = mut []
 
       for line in lines {
         let line = strings::TrimSpace(line)
@@ -291,7 +298,7 @@ fn parse_frontmatter(content: Str) Frontmatter!Str {
               let key = strings::TrimSpace(matches.at(1).or(""))
               let value = strip_quotes(strings::TrimSpace(matches.at(2).or("")))
               current_key = key
-              let empty_list: [Str] = []
+              let empty_list: mut [Str] = mut []
               current_list = empty_list
               if not value.is_empty() {
                 values.set(key, value)
@@ -331,13 +338,10 @@ fn html_escape(s: Str) Str {
 
 fn render_inline_code(text: Str) Str {
   let code_regex = regexp::MustCompile("`([^`]+)`")
-  code_regex.ReplaceAllStringFunc(
-    text,
-    fn(found: Str) Str {
-      let inner = strings::TrimSuffix(strings::TrimPrefix(found, "`"), "`")
-      "<code>{html_escape(inner)}</code>"
-    },
-  )
+  code_regex.ReplaceAllStringFunc(text, fn(found: Str) Str {
+    let inner = strings::TrimSuffix(strings::TrimPrefix(found, "`"), "`")
+    "<code>{html_escape(inner)}</code>"
+  })
 }
 
 fn render_inline(text: Str) Str {
@@ -485,13 +489,13 @@ fn strip_markdown(markdown: Str) Str {
 }
 
 fn truncate_excerpt(text: Str) Str {
-  mut excerpt: [Byte] = []
+  let excerpt: mut [Byte] = mut []
   for byte, index in text.bytes() {
     if index < 217 {
       excerpt.push(byte)
     }
   }
-  "{Str::from(excerpt)}..."
+  "{Str::from(deref excerpt)}..."
 }
 
 fn extract_excerpt(body_md: Str) Str {
@@ -524,7 +528,14 @@ fn build_post_page(post: Post) Void!Str {
 
   let article = "<article class=\"post post-page\">\n<header class=\"post-header\">\n<h1>{post.title}</h1>\n<p class=\"meta\">{format_date(post.date)}</p>\n</header>\n<div class=\"post-content\">{post.html}</div>\n</article>"
 
-  let page = apply_layout(layout_tpl, "{post.title} | akonwi", article, canonical, "My ramblings...", "blog")
+  let page = apply_layout(
+    layout_tpl,
+    "{post.title} | akonwi",
+    article,
+    canonical,
+    "My ramblings...",
+    "blog",
+  )
   try os::MkdirAll("dist/blog/{post.slug}", 493)
   try write_text("dist/blog/{post.slug}/index.html", page)
   Result::ok(())
@@ -583,7 +594,7 @@ fn build_feed(posts: [Post]) Void!Str {
 }
 fn buildposts() [Post]!Str {
   let entries = try os::ReadDir("posts")
-  mut posts: [Post] = []
+  let posts: mut [Post] = mut []
 
   for entry in entries {
     let name = entry.Name()
@@ -617,7 +628,7 @@ fn buildposts() [Post]!Str {
     }
   }
 
-  Result::ok(posts)
+  Result::ok(deref posts)
 }
 
 fn build_site() Void!Str {
@@ -631,7 +642,13 @@ fn build_site() Void!Str {
   try build_index(posts)
 
   try build_page("pages/about.md", "dist/about/index.html", "About | akonwi", "/about/", "about")
-  try build_page("pages/projects.md", "dist/projects/index.html", "Projects | akonwi", "/projects/", "projects")
+  try build_page(
+    "pages/projects.md",
+    "dist/projects/index.html",
+    "Projects | akonwi",
+    "/projects/",
+    "projects",
+  )
 
   try build_feed(posts)
 
@@ -724,7 +741,14 @@ test fn test_format_date_february() Void!Str {
 
 test fn test_apply_layout_replaces_all_placeholders() Void!Str {
   let tpl = "<html><title>@@title@@</title><link href=\"@@canonical_url@@\" /><meta name=\"desc\" content=\"@@description@@\" /><body>@@content@@</body></html>"
-  let result = apply_layout(tpl, "My Page", "<p>Hello</p>", "https://example.com/", "A description", "blog")
+  let result = apply_layout(
+    tpl,
+    "My Page",
+    "<p>Hello</p>",
+    "https://example.com/",
+    "A description",
+    "blog",
+  )
 
   try testing::assert(result.contains("My Page"), "Should contain title")
   try testing::assert(result.contains("<p>Hello</p>"), "Should contain content")
