@@ -6,7 +6,7 @@ Repository guidance for coding agents working in this project.
 - Purpose: Personal blog/site with posts, pages, and RSS.
 - Content source: markdown in `posts/` and `pages/`.
 - Build output: `dist/` directory.
-- SSG source: `site.ard` (Ard with direct Go standard-library imports). Requires Ard >= 0.35.
+- SSG source: `site.ard` (Ard with direct Go standard-library imports). Requires Ard >= 0.36.
 
 ## URL Requirements
 - Blog posts: `/blog/:title` (slug derived from filename).

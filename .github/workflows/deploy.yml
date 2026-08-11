@@ -1,5 +1,8 @@
 name: Deploy site to GitHub Pages
 
+env:
+  ARD_VERSION: v0.36.0
+
 on:
   push:
     branches:
@@ -23,30 +26,23 @@ jobs:
       - name: Checkout blog repository
         uses: actions/checkout@v4
 
-      - name: Checkout Ard compiler
-        uses: actions/checkout@v4
-        with:
-          repository: akonwi/ard
-          ref: v0.28.0
-          path: ard
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-          cache: true
-          cache-dependency-path: ard/compiler/go.sum
 
-      - name: Download Go dependencies
-        working-directory: ard/compiler
-        run: go mod download
+      - name: Install Ard
+        run: |
+          curl -fsSL -o /tmp/ard.tar.gz \
+            "https://github.com/akonwi/ard/releases/download/${ARD_VERSION}/ard_${ARD_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/ard.tar.gz -C /tmp
+          sudo install /tmp/ard /usr/local/bin/ard
 
-      - name: Build Ard compiler
-        working-directory: ard/compiler
-        run: go build -tags=goexperiment.jsonv2 -o ${{ github.workspace }}/ard-compiler .
+      - name: Verify Ard compiler
+        run: test "$(ard version)" = "$ARD_VERSION"
 
       - name: Build site
-        run: ./ard-compiler run site.ard
+        run: ard run site.ard
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

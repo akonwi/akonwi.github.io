@@ -489,13 +489,8 @@ fn strip_markdown(markdown: Str) Str {
 }
 
 fn truncate_excerpt(text: Str) Str {
-  let excerpt: mut [Byte] = mut []
-  for byte, index in text.bytes() {
-    if index < 217 {
-      excerpt.push(byte)
-    }
-  }
-  "{Str::from(deref excerpt)}..."
+  let excerpt = text.slice(end: 217).expect("excerpt length checked")
+  "{excerpt}..."
 }
 
 fn extract_excerpt(body_md: Str) Str {
@@ -526,7 +521,15 @@ fn build_post_page(post: Post) Void!Str {
   let layout_tpl = try read_text("templates/layout.html")
   let canonical = "https://akonwi.io{post.url}"
 
-  let article = "<article class=\"post post-page\">\n<header class=\"post-header\">\n<h1>{post.title}</h1>\n<p class=\"meta\">{format_date(post.date)}</p>\n</header>\n<div class=\"post-content\">{post.html}</div>\n</article>"
+  let article = `
+  <article class="post post-page">
+  <header class="post-header">
+  <h1>{post.title}</h1>
+  <p class="meta">{format_date(post.date)}</p>
+  </header>
+  <div class="post-content">{post.html}</div>
+  </article>
+  `
 
   let page = apply_layout(
     layout_tpl,
@@ -550,7 +553,11 @@ fn build_index(posts: [Post]) Void!Str {
     list_html =+ apply_post_card(card_tpl, post)
   }
 
-  let content = "<section class=\"home\">\n<ul class=\"posts\">{list_html}</ul>\n</section>"
+  let content = `
+  <section class="home">
+  <ul class="posts">{list_html}</ul>
+  </section>
+  `
   let canonical = "https://akonwi.io/"
 
   let page = apply_layout(layout_tpl, "akonwi", content, canonical, "My ramblings...", "blog")
@@ -564,7 +571,11 @@ fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_pat
 
   let layout_tpl = try read_text("templates/layout.html")
 
-  let content = "<section class=\"post page-content\">\n<div class=\"post-content\">{html}</div>\n</section>"
+  let content = `
+  <section class="post page-content">
+  <div class="post-content">{html}</div>
+  </section>
+  `
   let canonical = "https://akonwi.io{canonical_path}"
 
   let page = apply_layout(layout_tpl, page_title, content, canonical, "My ramblings...", nav_id)
@@ -578,16 +589,30 @@ fn build_feed(posts: [Post]) Void!Str {
 
   mut items = ""
   for post in posts {
-    items =+ "  <item>\n"
-    items =+ "    <title>{xml_escape(post.title)}</title>\n"
-    items =+ "    <link>https://akonwi.io{post.url}</link>\n"
-    items =+ "    <guid>https://akonwi.io{post.url}</guid>\n"
-    items =+ "    <pubDate>{rss_date(post.date)}</pubDate>\n"
-    items =+ "    <description>{xml_escape(post.excerpt)}</description>\n"
-    items =+ "  </item>\n"
+    items =+ `
+      <item>
+        <title>{xml_escape(post.title)}</title>
+        <link>https://akonwi.io{post.url}</link>
+        <guid>https://akonwi.io{post.url}</guid>
+        <pubDate>{rss_date(post.date)}</pubDate>
+        <description>{xml_escape(post.excerpt)}</description>
+      </item>
+    `
+    items =+ "\n"
   }
 
-  let feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<channel>\n<title>{xml_escape("akonwi")}</title>\n<description>{xml_escape("My ramblings...")}</description>\n<link>https://akonwi.io</link>\n<atom:link href=\"https://akonwi.io/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n<lastBuildDate>{now}</lastBuildDate>\n{items}</channel>\n</rss>"
+  let feed = `
+  <?xml version="1.0" encoding="UTF-8"?>
+  <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+  <title>{xml_escape("akonwi")}</title>
+  <description>{xml_escape("My ramblings...")}</description>
+  <link>https://akonwi.io</link>
+  <atom:link href="https://akonwi.io/feed.xml" rel="self" type="application/rss+xml"/>
+  <lastBuildDate>{now}</lastBuildDate>
+  {items}</channel>
+  </rss>
+  `
 
   try write_text("dist/feed.xml", feed)
   Result::ok(())
