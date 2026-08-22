@@ -1,7 +1,7 @@
 name: Deploy site to GitHub Pages
 
 env:
-  ARD_VERSION: v0.36.0
+  ARD_VERSION: v0.38.0
 
 on:
   push:
