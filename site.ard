@@ -6,6 +6,10 @@ use go:regexp
 use go:strings
 use go:time
 
+fn error_message(error: Error) Str {
+  error.error()
+}
+
 // ============================================================
 // Data types
 // ============================================================
@@ -205,19 +209,19 @@ fn extract_date_from_posts(posts: [Post]) Str {
 }
 
 fn read_text(path: Str) Str!Str {
-  let bytes = try os::ReadFile(path)
+  let bytes = try os::ReadFile(path).map_err(error_message)
   Result::ok(Str::from(bytes))
 }
 
 fn write_text(path: Str, content: Str) Void!Str {
   let bytes = content.bytes()
-  try os::WriteFile(path, mut bytes, 420)
+  try os::WriteFile(path, mut bytes, 420).map_err(error_message)
   Result::ok(())
 }
 
 fn copy_file(source: Str, destination: Str) Void!Str {
-  let bytes = try os::ReadFile(source)
-  try os::WriteFile(destination, mut bytes, 420)
+  let bytes = try os::ReadFile(source).map_err(error_message)
+  try os::WriteFile(destination, mut bytes, 420).map_err(error_message)
   Result::ok(())
 }
 
@@ -539,7 +543,7 @@ fn build_post_page(post: Post) Void!Str {
     "My ramblings...",
     "blog",
   )
-  try os::MkdirAll("dist/blog/{post.slug}", 493)
+  try os::MkdirAll("dist/blog/{post.slug}", 493).map_err(error_message)
   try write_text("dist/blog/{post.slug}/index.html", page)
   Result::ok(())
 }
@@ -579,7 +583,7 @@ fn build_page(source_path: Str, output_path: Str, page_title: Str, canonical_pat
   let canonical = "https://akonwi.io{canonical_path}"
 
   let page = apply_layout(layout_tpl, page_title, content, canonical, "My ramblings...", nav_id)
-  try os::MkdirAll(output_path.replace_all("/index.html", ""), 493)
+  try os::MkdirAll(output_path.replace_all("/index.html", ""), 493).map_err(error_message)
   try write_text(output_path, page)
   Result::ok(())
 }
@@ -618,7 +622,7 @@ fn build_feed(posts: [Post]) Void!Str {
   Result::ok(())
 }
 fn buildposts() [Post]!Str {
-  let entries = try os::ReadDir("posts")
+  let entries = try os::ReadDir("posts").map_err(error_message)
   let posts: mut [Post] = mut []
 
   for entry in entries {
@@ -653,14 +657,14 @@ fn buildposts() [Post]!Str {
     }
   }
 
-  Result::ok(deref posts)
+  Result::ok(posts.@)
 }
 
 fn build_site() Void!Str {
-  try fmt::Println("Building site...")
+  try fmt::Println("Building site...").map_err(error_message)
 
-  try os::MkdirAll("dist", 493)
-  try os::MkdirAll("dist/blog", 493)
+  try os::MkdirAll("dist", 493).map_err(error_message)
+  try os::MkdirAll("dist/blog", 493).map_err(error_message)
 
   let posts = try buildposts()
 
@@ -677,13 +681,13 @@ fn build_site() Void!Str {
 
   try build_feed(posts)
 
-  try os::MkdirAll("dist/css", 493)
+  try os::MkdirAll("dist/css", 493).map_err(error_message)
   try copy_file("css/mica.css", "dist/css/mica.css")
   try copy_file("css/style.css", "dist/css/style.css")
   try copy_file("css/syntax.css", "dist/css/syntax.css")
   try write_text("dist/CNAME", "akonwi.io")
 
-  try fmt::Println("Done! Site built to dist")
+  try fmt::Println("Done! Site built to dist").map_err(error_message)
   Result::ok(())
 }
 
